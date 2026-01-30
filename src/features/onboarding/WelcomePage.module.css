@@ -1,0 +1,74 @@
+.page {
+  background: var(--color-surface-alt);
+  padding: var(--space-48) 0 var(--space-64);
+  min-height: calc(100vh - 160px);
+}
+
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-32);
+  display: grid;
+  gap: var(--space-24);
+}
+
+.copy h1 {
+  margin: 0 0 var(--space-8);
+  font-size: 28px;
+}
+
+.copy p {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.eyebrow {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent-dark);
+  margin-bottom: var(--space-8);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+}
+
+.chip {
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 8px 16px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 14px;
+  transition: border 0.2s ease, background 0.2s ease;
+}
+
+.chipActive {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+
+.primaryButton {
+  background: var(--color-accent);
+  color: #1b1b1b;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  width: fit-content;
+}
+
+.primaryButton:hover {
+  background: var(--color-accent-dark);
+}
+
+.primaryButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

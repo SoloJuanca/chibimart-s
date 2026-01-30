@@ -1,0 +1,20 @@
+.card {
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-12);
+  display: grid;
+  gap: var(--space-12);
+}
+
+.media {
+  height: 110px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #f5d2b1, #fef1e3);
+}
+
+.card h3 {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.2;
+}
