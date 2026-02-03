@@ -40,7 +40,7 @@ function VerifyPage() {
         return
       }
 
-      setAuth({ ...auth, verified: true })
+      setAuth({ ...auth, verified: true, roles: auth.roles || ['CUSTOMER'] })
       setStatus({ loading: false, error: '', success: 'Cuenta verificada.' })
       navigate('/welcome')
     } catch (error) {

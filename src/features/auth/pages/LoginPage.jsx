@@ -38,7 +38,7 @@ function LoginPage() {
       const data = await response.json()
       if (!response.ok) {
         if (data.requiresVerification) {
-          setAuth({ email: form.email, verified: false })
+          setAuth({ email: form.email, verified: false, roles: ['CUSTOMER'] })
           navigate('/verify')
           return
         }
@@ -47,10 +47,13 @@ function LoginPage() {
       }
 
       setAuth({
+        id: data.id,
         email: data.email,
         firstName: data.firstName,
         lastName: data.lastName,
+        phone: data.phone || '',
         verified: true,
+        roles: data.roles && Array.isArray(data.roles) ? data.roles : ['CUSTOMER'],
       })
       navigate('/')
     } catch (error) {

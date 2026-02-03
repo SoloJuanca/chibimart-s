@@ -49,7 +49,15 @@ function RegisterPage() {
         return
       }
 
-      setAuth({ email: form.email, verified: false })
+      setAuth({
+        id: data.id,
+        email: form.email,
+        firstName: form.firstName,
+        lastName: form.lastName,
+        phone: form.phone || '',
+        verified: false,
+        roles: Array.isArray(data.roles) && data.roles.length > 0 ? data.roles : ['CUSTOMER'],
+      })
       setStatus({
         loading: false,
         error: '',

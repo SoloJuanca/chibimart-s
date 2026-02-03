@@ -1,0 +1,195 @@
+.page {
+  padding: var(--space-32) 0 var(--space-64);
+  background: var(--color-surface-alt);
+  min-height: 80vh;
+}
+
+.headerRow {
+  margin-bottom: var(--space-24);
+}
+
+.filters {
+  display: flex;
+  gap: var(--space-16);
+  margin-bottom: var(--space-24);
+  flex-wrap: wrap;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.field input,
+.field select,
+.section textarea {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  background: var(--color-surface);
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: var(--space-24);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.listItem {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-12);
+  background: var(--color-surface);
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.listItemActive {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.listItem div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.listItem span {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.status {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.detail {
+  min-height: 320px;
+}
+
+.card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-24);
+}
+
+.section {
+  margin-top: var(--space-24);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-12);
+}
+
+.detailGrid span {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.detailGrid strong {
+  display: block;
+  font-size: 14px;
+}
+
+.documentList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.documentRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-12);
+}
+
+.documentRow img {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+}
+
+.documentRow div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.documentRow span {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-12);
+  justify-content: flex-end;
+  margin-top: var(--space-24);
+}
+
+.approveButton {
+  background: var(--color-accent);
+  border: none;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rejectButton {
+  background: transparent;
+  border: 1px solid #d14343;
+  color: #d14343;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rejectButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.emptyState {
+  padding: var(--space-24);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  text-align: center;
+}
+
+@media (max-width: 960px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+}

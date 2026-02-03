@@ -42,6 +42,8 @@ export const registerUser = async (req, res) => {
       birthday,
       acceptedTerms,
       verified: false,
+      roles: ['CUSTOMER'],
+      isAdmin: false,
       verificationCode,
       verificationExpiresAt,
       createdAt,
@@ -51,6 +53,12 @@ export const registerUser = async (req, res) => {
 
     return res.status(201).json({
       id: userRef.id,
+      firstName,
+      lastName,
+      email,
+      phone: phone || null,
+      roles: ['CUSTOMER'],
+      isAdmin: false,
       message: 'Registro exitoso. Revisa tu correo para verificar.',
     })
   } catch (error) {
@@ -94,11 +102,23 @@ export const loginUser = async (req, res) => {
       })
     }
 
+    const hasRoles = Array.isArray(userData.roles) && userData.roles.length > 0
+    const hasAdminFlag = typeof userData.isAdmin === 'boolean'
+    if (!hasRoles || !hasAdminFlag) {
+      await updateDoc(doc(firestore, 'users', userDoc.id), {
+        roles: hasRoles ? userData.roles : ['CUSTOMER'],
+        isAdmin: hasAdminFlag ? userData.isAdmin : false,
+      })
+    }
+
     return res.status(200).json({
       id: userDoc.id,
       firstName: userData.firstName,
       lastName: userData.lastName,
       email: userData.email,
+      phone: userData.phone || null,
+      roles: hasRoles ? userData.roles : ['CUSTOMER'],
+      isAdmin: hasAdminFlag ? userData.isAdmin : false,
       verified: true,
     })
   } catch (error) {

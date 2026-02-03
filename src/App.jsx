@@ -5,6 +5,10 @@ import RegisterPage from './features/auth/pages/RegisterPage'
 import VerifyPage from './features/auth/pages/VerifyPage'
 import WelcomePage from './features/search/WelcomePage'
 import SearchPage from './features/search/SearchPage'
+import SellerApplyPage from './features/seller/pages/SellerApplyPage'
+import SellerAdminPage from './features/seller/pages/SellerAdminPage'
+import SellerLandingPage from './features/seller/pages/SellerLandingPage'
+import SellerListingsPage from './features/seller/pages/SellerListingsPage'
 import { AuthProvider } from './context/AuthContext'
 
 function App() {
@@ -18,6 +22,10 @@ function App() {
           <Route path="/verify" element={<VerifyPage />} />
           <Route path="/welcome" element={<WelcomePage />} />
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/seller" element={<SellerLandingPage />} />
+          <Route path="/seller/apply" element={<SellerApplyPage />} />
+          <Route path="/seller/listings" element={<SellerListingsPage />} />
+          <Route path="/admin/sellers" element={<SellerAdminPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>

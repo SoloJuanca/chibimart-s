@@ -6,6 +6,9 @@ import { useAuth } from '../../context/AuthContext'
 function Header({ categories }) {
   const { auth } = useAuth()
 
+  const isSeller = auth?.roles?.includes('SELLER') || auth?.roles?.includes('SELLER_PENDING')
+  const accountLink = auth?.email ? (isSeller ? '/seller/apply' : '/welcome') : '/login'
+
   return (
     <header className={styles.header}>
       <Container>
@@ -23,8 +26,8 @@ function Header({ categories }) {
             />
           </label>
           <div className={styles.actions}>
-            <Link className={styles.sellButton} to="/register">
-              Quiero vender
+            <Link className={styles.sellButton} to="/seller">
+              Quiero ser vendedor
             </Link>
             {!auth?.email && (
               <Link className={styles.authLink} to="/login">
@@ -39,7 +42,7 @@ function Header({ categories }) {
             </button>
             <Link
               className={styles.iconButton}
-              to={auth?.email ? '/welcome' : '/login'}
+              to={accountLink}
               aria-label="Mi cuenta"
             >
               <img src="/icons/user-profile-02.svg" alt="" />
