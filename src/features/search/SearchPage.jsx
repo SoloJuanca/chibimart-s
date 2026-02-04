@@ -1,91 +1,91 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Container from '../../components/layout/Container'
 import Header from '../../components/layout/Header'
 import Footer from '../../components/layout/Footer'
 import { navCategories } from '../../data/categories'
+import { useAuth } from '../../context/AuthContext'
+import SearchFilters from './components/SearchFilters'
+import SearchListingsGrid from './components/SearchListingsGrid'
+import { listPublishedListings } from '../seller/services/listingService'
+import { listFavoritesByUser, toggleFavorite } from './services/favoriteService'
 import styles from './SearchPage.module.css'
 
 const tabs = ['Ver todo', 'Accesorios', 'TCG', 'Figuras y peluches', 'Juegos de mesa', 'Videojuegos', 'Ropa']
 
-const listings = [
-  { title: 'Aqua Sakura card captor', price: '$130.00', seller: 'mangorojq' },
-  { title: 'Aretes demon slayer', price: '$140.00', seller: 'mangorojq' },
-  { title: 'Conjunto de howl chiquito', price: '$50.00', seller: 'mangorojq' },
-  { title: 'Cyberpunk 2077: Gangs of Night City (2023)', price: '$2,800.00', seller: 'juegosdemesa' },
-  { title: 'Cyberpunk 2077 - The Board Game Edición Deluxe', price: '$3,500.00', seller: 'juegosdemesa' },
-  { title: 'Cyberpunk Ultimate Edition PS5', price: '$1,799.00', seller: 'Yuri' },
-  { title: 'Good Smile Arts Shanghai Cyberpunk', price: '$800.00', seller: 'amianiMYT' },
-  { title: 'Good Smile Company Rebecca Fig. 16.5 cm', price: '$1,500.00', seller: 'amianiMYT' },
-  { title: 'Jellycat cake', price: '$230.00', seller: 'mangorojq' },
-  { title: 'Jungwon', price: '$180.00', seller: 'mangorojq' },
-  { title: 'Kirby espacial', price: '$125.95', seller: 'cuidadoconelperro' },
-  { title: 'Kit pinturas para figuristas warhammer', price: '$696.89', seller: 'renegado' },
-  { title: 'Labubu', price: '$599.99', seller: 'sinazone' },
-  { title: 'Llavero gatito fantasma', price: '$299.99', seller: 'mangorojq' },
-  { title: 'Llaveros perritos', price: '$230.99', seller: 'mangorojq' },
-  { title: 'Funda de teléfono con caja de fruta', price: '$170.00', seller: 'Yuri' },
-  { title: 'Monedas de Metal adicionales', price: '$570.00', seller: 'juegosdemesa' },
-  { title: 'Palomero de sonic', price: '$800.00', seller: 'cabsellio' },
-  { title: 'Rebecca Hoodie CYBERPUNK EDGERUNNERS', price: '$1,299.00', seller: 'cuidadoconelperro' },
-  { title: 'Rem de rezero traje novia', price: '$275.15', seller: 'mastersama' },
-  { title: 'Sonny fian', price: '$170.00', seller: 'mangorojq' },
-  { title: 'Ticket to ride: Days of Wonder', price: '$1,132.72', seller: 'juegosdemesa' },
-  { title: 'Torre de sauron de los anillos', price: '$10,999.00', seller: 'renegado' },
-  { title: 'Youtooz Cyberpunk Rebecca Plush', price: '$500.00', seller: 'amianiMYT' },
-  { title: '100 Unidades Card Sleeve Protector', price: '$139.99', seller: 'juegosdemesa' },
-  { title: '5 cajas Sonny angels hippers', price: '$170.00', seller: 'Yuri' },
-]
-
 function SearchPage() {
+  const { auth } = useAuth()
+  const userId = auth?.id || auth?.email || ''
   const [activeTab, setActiveTab] = useState('Ver todo')
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [listings, setListings] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState('')
+  const [favoriteIds, setFavoriteIds] = useState([])
 
-  const totalCount = useMemo(() => listings.length, [])
+  useEffect(() => {
+    let isMounted = true
+    setLoading(true)
+    setErrorMessage('')
+    listPublishedListings()
+      .then((data) => {
+        if (!isMounted) return
+        setListings(Array.isArray(data) ? data : [])
+      })
+      .catch((error) => {
+        if (!isMounted) return
+        setListings([])
+        setErrorMessage(error?.message || 'No pudimos cargar los listings.')
+      })
+      .finally(() => {
+        if (!isMounted) return
+        setLoading(false)
+      })
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
-  const renderFilters = () => (
-    <div className={styles.filtersCard}>
-      <div className={styles.filterGroup}>
-        <h4>Tema</h4>
-        <select>
-          <option>Selecciona</option>
-          <option>Anime</option>
-          <option>Retro</option>
-          <option>Kawaii</option>
-        </select>
-      </div>
-      <div className={styles.filterGroup}>
-        <h4>Categoría</h4>
-        {['Accesorios', 'Cartas', 'Figuras y peluches', 'Juegos de mesa', 'Ropa', 'Videojuegos'].map(
-          (item) => (
-            <label key={item} className={styles.checkboxRow}>
-              <input type="checkbox" defaultChecked />
-              <span>{item}</span>
-            </label>
-          ),
-        )}
-      </div>
-      <div className={styles.filterGroup}>
-        <h4>Precio</h4>
-        <div className={styles.priceRow}>
-          <input type="text" placeholder="Min" />
-          <span>a</span>
-          <input type="text" placeholder="Max" />
-        </div>
-      </div>
-      <div className={styles.filterGroup}>
-        <h4>Vendido por...</h4>
-        {['Creadores', 'Coleccionistas'].map((item) => (
-          <label key={item} className={styles.checkboxRow}>
-            <input type="checkbox" defaultChecked />
-            <span>{item}</span>
-          </label>
-        ))}
-      </div>
-      <button className={styles.clearButton} type="button">
-        Limpiar todos los filtros
-      </button>
-    </div>
-  )
+  useEffect(() => {
+    if (!userId) {
+      setFavoriteIds([])
+      return
+    }
+    let isMounted = true
+    listFavoritesByUser(userId)
+      .then((data) => {
+        if (!isMounted) return
+        const ids = Array.isArray(data) ? data.map((item) => item.id) : []
+        setFavoriteIds(ids)
+      })
+      .catch(() => {
+        if (isMounted) setFavoriteIds([])
+      })
+    return () => {
+      isMounted = false
+    }
+  }, [userId])
+
+  const handleToggleFavorite = async (listingId) => {
+    if (!listingId || !userId) return
+    let previous = []
+    setFavoriteIds((prev) => {
+      previous = prev
+      return prev.includes(listingId) ? prev.filter((id) => id !== listingId) : [...prev, listingId]
+    })
+    try {
+      const result = await toggleFavorite({ userId, listingId })
+      setFavoriteIds((prev) => {
+        if (result.favorite) {
+          return prev.includes(listingId) ? prev : [...prev, listingId]
+        }
+        return prev.filter((id) => id !== listingId)
+      })
+    } catch (error) {
+      setFavoriteIds(previous)
+    }
+  }
+
+  const totalCount = useMemo(() => listings.length, [listings])
 
   return (
     <>
@@ -111,24 +111,23 @@ function SearchPage() {
             </button>
           </div>
           <div className={styles.layout}>
-            <aside className={styles.sidebar}>{renderFilters()}</aside>
+            <aside className={styles.sidebar}>
+              <SearchFilters />
+            </aside>
             <section className={styles.results}>
               <h2>Todo ({totalCount})</h2>
-              <div className={styles.grid}>
-                {listings.map((item) => (
-                  <article key={item.title} className={styles.card}>
-                    <div className={styles.cardImage} />
-                    <div className={styles.cardBody}>
-                      <h3>{item.title}</h3>
-                      <div className={styles.cardPrice}>{item.price}</div>
-                      <div className={styles.cardMeta}>Vendido por {item.seller}</div>
-                    </div>
-                    <button className={styles.favoriteButton} type="button" aria-label="Agregar a favoritos">
-                      ♥
-                    </button>
-                  </article>
-                ))}
-              </div>
+              {loading && <div className={styles.stateMessage}>Cargando listings...</div>}
+              {!loading && errorMessage && <div className={styles.stateMessage}>{errorMessage}</div>}
+              {!loading && !errorMessage && listings.length === 0 && (
+                <div className={styles.stateMessage}>No hay listings publicados por ahora.</div>
+              )}
+              {!loading && !errorMessage && listings.length > 0 && (
+                <SearchListingsGrid
+                  listings={listings}
+                  favoriteIds={favoriteIds}
+                  onToggleFavorite={handleToggleFavorite}
+                />
+              )}
             </section>
           </div>
         </Container>
@@ -143,7 +142,7 @@ function SearchPage() {
                 Cerrar
               </button>
             </div>
-            {renderFilters()}
+            <SearchFilters compact />
           </div>
         </div>
       )}

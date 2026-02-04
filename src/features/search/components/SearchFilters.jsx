@@ -17,7 +17,7 @@ function SearchFilters({ title = 'Filtros', compact = false }) {
       <h3>{title}</h3>
       <div className={styles.group}>
         <label htmlFor="theme-select">Tema</label>
-        <select id="theme-select">
+        <select id="theme-select" className={styles.select}>
           <option>Selecciona</option>
           <option>Anime</option>
           <option>Videojuegos</option>

@@ -71,9 +71,9 @@ function Header({ categories }) {
                 Iniciar sesión
               </Link>
             )}
-            <button className={styles.iconButton} type="button" aria-label="Favoritos">
+            <Link className={styles.iconButton} to="/favorites" aria-label="Favoritos">
               <img src="/icons/heart.svg" alt="" />
-            </button>
+            </Link>
             <button className={styles.iconButton} type="button" aria-label="Carrito">
               <img src="/icons/cart.svg" alt="" />
             </button>
@@ -133,7 +133,7 @@ function Header({ categories }) {
                     )}
                     <Link
                       className={styles.menuItem}
-                      to="/search"
+                      to="/favorites"
                       role="menuitem"
                       onClick={() => setMenuOpen(false)}
                     >

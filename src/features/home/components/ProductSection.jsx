@@ -1,5 +1,5 @@
 import Container from '../../../components/layout/Container'
-import ListingCard from './ListingCard'
+import SearchCard from '../../search/components/SearchCard'
 import styles from './ProductSection.module.css'
 
 function ProductSection({ title, subtitle, listings, layout = 'featured', isLoading = false, isError = false }) {
@@ -21,24 +21,24 @@ function ProductSection({ title, subtitle, listings, layout = 'featured', isLoad
         ) : isLoading ? (
           <div className={styles.grid}>
             {Array.from({ length: 6 }).map((_, index) => (
-              <ListingCard key={index} isSkeleton />
+              <SearchCard key={index} isSkeleton showFavorite={false} />
             ))}
           </div>
         ) : listings.length === 0 ? (
           <div className={styles.state}>No hay productos disponibles.</div>
         ) : layout === 'featured' ? (
           <div className={styles.featuredLayout}>
-            <ListingCard {...featured} size="large" />
+            <SearchCard {...featured} size="large" showFavorite={false} />
             <div className={styles.grid}>
               {remaining.map((item) => (
-                <ListingCard key={item.title} {...item} />
+                <SearchCard key={item.title} {...item} showFavorite={false} />
               ))}
             </div>
           </div>
         ) : (
           <div className={styles.grid}>
             {listings.map((item) => (
-              <ListingCard key={item.title} {...item} />
+              <SearchCard key={item.title} {...item} showFavorite={false} />
             ))}
           </div>
         )}

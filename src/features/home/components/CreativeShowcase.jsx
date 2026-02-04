@@ -1,5 +1,5 @@
 import Container from '../../../components/layout/Container'
-import ListingCard from './ListingCard'
+import SearchCard from '../../search/components/SearchCard'
 import styles from './CreativeShowcase.module.css'
 
 function CreativeShowcase({ title, subtitle, listings }) {
@@ -13,7 +13,7 @@ function CreativeShowcase({ title, subtitle, listings }) {
         <div className={styles.content}>
           <div className={styles.cards}>
             {listings.map((item) => (
-              <ListingCard key={item.title} {...item} />
+              <SearchCard key={item.title} {...item} showFavorite={false} />
             ))}
           </div>
           <div className={styles.featured} aria-hidden="true" />

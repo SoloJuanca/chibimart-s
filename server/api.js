@@ -6,12 +6,22 @@ import {
   getListingDraftByUser,
   getListingById,
   listListingsByUser,
+  listPublishedListings,
+  listPublishedListingsBySeller,
+  listRelatedListings,
   upsertListing,
   publishListing,
   uploadListingImage,
   uploadListingVariantImage,
 } from './controllers/listingsController.js'
+import {
+  listQuestionsByListing,
+  askListingQuestion,
+  answerListingQuestion,
+} from './controllers/listingQuestionsController.js'
+import { listReviewsBySeller } from './controllers/reviewsController.js'
 import { uploadSellerDocument, uploadShopProfilePicture } from './controllers/sellerController.js'
+import { listFavoritesByUser, toggleFavorite } from './controllers/favoritesController.js'
 import {
   getSellerApplicationByUser,
   listSellerApplications,
@@ -38,10 +48,19 @@ app.get('/api/admin/sellers', getSellers)
 app.get('/api/listings', getListingDraftByUser)
 app.get('/api/listings/by-id', getListingById)
 app.get('/api/listings/user', listListingsByUser)
+app.get('/api/listings/published', listPublishedListings)
+app.get('/api/listings/published/by-seller', listPublishedListingsBySeller)
+app.get('/api/listings/related', listRelatedListings)
 app.post('/api/listings', upsertListing)
 app.post('/api/listings/publish', publishListing)
 app.post('/api/listings/images', uploadListingImage)
 app.post('/api/listings/variant-images', uploadListingVariantImage)
+app.get('/api/favorites', listFavoritesByUser)
+app.post('/api/favorites/toggle', toggleFavorite)
+app.get('/api/listing-questions', listQuestionsByListing)
+app.post('/api/listing-questions', askListingQuestion)
+app.post('/api/listing-questions/answer', answerListingQuestion)
+app.get('/api/reviews/seller', listReviewsBySeller)
 app.post('/api/seller/shop-profile-picture', uploadShopProfilePicture)
 app.post('/api/seller/documents', uploadSellerDocument)
 app.get('/api/seller/applications', (req, res) => {

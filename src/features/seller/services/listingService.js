@@ -20,6 +20,10 @@ export const listListingsByUser = async (userId) => {
   return request(`/api/listings/user?userId=${encodeURIComponent(userId)}`)
 }
 
+export const listPublishedListings = async () => {
+  return request('/api/listings/published')
+}
+
 export const getListingById = async (listingId) => {
   return request(`/api/listings/by-id?listingId=${encodeURIComponent(listingId)}`)
 }

@@ -4,11 +4,19 @@
   box-shadow: var(--shadow-sm);
   overflow: hidden;
   display: grid;
+  color: inherit;
+}
+
+.cardLink {
+  text-decoration: none;
 }
 
 .image {
   background: linear-gradient(135deg, #f3e5d8, #f6efe7);
   height: 130px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .body {
@@ -44,4 +52,22 @@
   background: var(--color-accent-soft);
   cursor: pointer;
   color: #9a4a11;
+}
+
+.favoriteActive {
+  background: var(--color-accent);
+  color: #1b1b1b;
+}
+
+.large .image {
+  height: 220px;
+}
+
+.skeleton {
+  background: #f4f2ef;
+  border: 1px dashed var(--color-border);
+}
+
+.skeleton .image {
+  background: linear-gradient(90deg, #f4f2ef, #efeae4, #f4f2ef);
 }

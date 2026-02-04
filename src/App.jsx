@@ -5,6 +5,8 @@ import RegisterPage from './features/auth/pages/RegisterPage'
 import VerifyPage from './features/auth/pages/VerifyPage'
 import WelcomePage from './features/search/WelcomePage'
 import SearchPage from './features/search/SearchPage'
+import FavoritesPage from './features/favorites/FavoritesPage'
+import ProductPage from './features/product/ProductPage'
 import SellerApplyPage from './features/seller/pages/SellerApplyPage'
 import SellerAdminPage from './features/seller/pages/SellerAdminPage'
 import SellerLandingPage from './features/seller/pages/SellerLandingPage'
@@ -23,6 +25,8 @@ function App() {
           <Route path="/verify" element={<VerifyPage />} />
           <Route path="/welcome" element={<WelcomePage />} />
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/product/:listingId" element={<ProductPage />} />
+          <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/seller" element={<SellerLandingPage />} />
           <Route path="/seller/apply" element={<SellerApplyPage />} />
           <Route path="/seller/listings" element={<SellerListingsPage />} />
