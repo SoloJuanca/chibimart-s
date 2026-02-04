@@ -1,0 +1,264 @@
+import {
+  addDoc,
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  limit,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+} from 'firebase/firestore'
+import { firestore } from '../firebase.js'
+import { getAdminStorage } from '../firebaseAdmin.js'
+
+const listingsCollection = collection(firestore, 'listings')
+
+const sanitizeFileName = (value) =>
+  value.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80)
+
+const parseDataUrl = (dataUrl) => {
+  const match = dataUrl.match(/^data:(.+);base64,(.*)$/)
+  if (!match) {
+    throw new Error('Formato de imagen inválido.')
+  }
+  return { contentType: match[1], buffer: Buffer.from(match[2], 'base64') }
+}
+
+const createEmptyListing = (userId) => {
+  const now = new Date().toISOString()
+  return {
+    userId,
+    status: 'DRAFT',
+    basic: {
+      title: '',
+      description: '',
+      origin: '',
+      isCreator: false,
+      condition: '',
+      stock: '',
+      hasVariants: '',
+    },
+    category: {
+      category: null,
+      subcategory: null,
+      tertiary: null,
+    },
+    variants: [],
+    pricing: {
+      price: '',
+    },
+    shipping: {
+      mode: 'self',
+      freeShipping: false,
+      rows: [],
+    },
+    images: {
+      photos: [],
+      variantImages: {},
+    },
+    createdAt: now,
+    updatedAt: now,
+    publishedAt: null,
+  }
+}
+
+const withDefaults = (listing) => ({
+  ...createEmptyListing(listing.userId),
+  ...listing,
+  basic: { ...createEmptyListing(listing.userId).basic, ...(listing.basic || {}) },
+  category: { ...createEmptyListing(listing.userId).category, ...(listing.category || {}) },
+  pricing: { ...createEmptyListing(listing.userId).pricing, ...(listing.pricing || {}) },
+  shipping: { ...createEmptyListing(listing.userId).shipping, ...(listing.shipping || {}) },
+  images: { ...createEmptyListing(listing.userId).images, ...(listing.images || {}) },
+  variants: Array.isArray(listing.variants) ? listing.variants : [],
+})
+
+export const getListingDraftByUser = async (req, res) => {
+  try {
+    const { userId } = req.query
+    if (!userId) {
+      return res.status(400).json({ message: 'userId es obligatorio.' })
+    }
+
+    const listingQuery = query(
+      listingsCollection,
+      where('userId', '==', userId),
+      where('status', '==', 'DRAFT'),
+      limit(1),
+    )
+    const snapshot = await getDocs(listingQuery)
+    if (!snapshot.empty) {
+      const docSnap = snapshot.docs[0]
+      return res.status(200).json({ id: docSnap.id, ...withDefaults(docSnap.data()) })
+    }
+
+    const created = createEmptyListing(userId)
+    const docRef = await addDoc(listingsCollection, created)
+    return res.status(200).json({ id: docRef.id, ...created })
+  } catch (error) {
+    return res.status(500).json({
+      message: 'Error al obtener listing.',
+      error: error.message || 'Error desconocido',
+    })
+  }
+}
+
+export const listListingsByUser = async (req, res) => {
+  try {
+    const { userId } = req.query
+    if (!userId) {
+      return res.status(400).json({ message: 'userId es obligatorio.' })
+    }
+
+    const listingQuery = query(listingsCollection, where('userId', '==', userId))
+    const snapshot = await getDocs(listingQuery)
+    const results = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...withDefaults(docSnap.data()) }))
+    return res.status(200).json(results)
+  } catch (error) {
+    return res.status(500).json({
+      message: 'Error al listar listings.',
+      error: error.message || 'Error desconocido',
+    })
+  }
+}
+
+export const getListingById = async (req, res) => {
+  try {
+    const { listingId } = req.query
+    if (!listingId) {
+      return res.status(400).json({ message: 'listingId es obligatorio.' })
+    }
+
+    const listingRef = doc(firestore, 'listings', listingId)
+    const snapshot = await getDoc(listingRef)
+    if (!snapshot.exists()) {
+      return res.status(404).json({ message: 'Listing no encontrado.' })
+    }
+
+    return res.status(200).json({ id: snapshot.id, ...withDefaults(snapshot.data()) })
+  } catch (error) {
+    return res.status(500).json({
+      message: 'Error al obtener listing.',
+      error: error.message || 'Error desconocido',
+    })
+  }
+}
+
+export const upsertListing = async (req, res) => {
+  try {
+    const { listing } = req.body
+    if (!listing?.userId) {
+      return res.status(400).json({ message: 'Listing inválido.' })
+    }
+
+    const now = new Date().toISOString()
+    const next = withDefaults({
+      ...listing,
+      updatedAt: now,
+      createdAt: listing.createdAt || now,
+    })
+
+    if (listing.id) {
+      const listingRef = doc(firestore, 'listings', listing.id)
+      await setDoc(listingRef, next, { merge: true })
+      return res.status(200).json({ id: listingRef.id, ...next })
+    }
+
+    const docRef = await addDoc(listingsCollection, next)
+    return res.status(201).json({ id: docRef.id, ...next })
+  } catch (error) {
+    return res.status(500).json({
+      message: 'Error al guardar listing.',
+      error: error.message || 'Error desconocido',
+    })
+  }
+}
+
+export const publishListing = async (req, res) => {
+  try {
+    const { listingId } = req.body
+    if (!listingId) {
+      return res.status(400).json({ message: 'listingId es obligatorio.' })
+    }
+
+    const now = new Date().toISOString()
+    const listingRef = doc(firestore, 'listings', listingId)
+    await updateDoc(listingRef, {
+      status: 'PUBLISHED',
+      publishedAt: now,
+      updatedAt: now,
+    })
+    return res.status(200).json({ id: listingId, status: 'PUBLISHED', publishedAt: now })
+  } catch (error) {
+    return res.status(500).json({
+      message: 'Error al publicar listing.',
+      error: error.message || 'Error desconocido',
+    })
+  }
+}
+
+export const uploadListingImage = async (req, res) => {
+  try {
+    const { userId, listingId, fileName, dataUrl } = req.body
+    if (!userId || !dataUrl) {
+      return res.status(400).json({ message: 'Faltan datos para subir la imagen.' })
+    }
+
+    const safeName = sanitizeFileName(fileName || 'listing.png')
+    const listingSegment = listingId || 'draft'
+    const filePath = `listings/${userId}/${listingSegment}/images/${Date.now()}_${safeName}`
+    const { contentType, buffer } = parseDataUrl(dataUrl)
+    const bucket = getAdminStorage().bucket()
+    const fileRef = bucket.file(filePath)
+
+    await fileRef.save(buffer, {
+      contentType,
+      resumable: false,
+    })
+    const [downloadUrl] = await fileRef.getSignedUrl({
+      action: 'read',
+      expires: '03-01-2500',
+    })
+
+    return res.status(200).json({ downloadUrl, filePath, fileName: safeName })
+  } catch (error) {
+    return res.status(500).json({
+      message: 'Error al subir la imagen.',
+      error: error.message || 'Error desconocido',
+    })
+  }
+}
+
+export const uploadListingVariantImage = async (req, res) => {
+  try {
+    const { userId, listingId, fileName, dataUrl, variantKey } = req.body
+    if (!userId || !dataUrl || !variantKey) {
+      return res.status(400).json({ message: 'Faltan datos para subir la imagen.' })
+    }
+
+    const safeName = sanitizeFileName(fileName || 'variant.png')
+    const listingSegment = listingId || 'draft'
+    const filePath = `listings/${userId}/${listingSegment}/variants/${variantKey}/${Date.now()}_${safeName}`
+    const { contentType, buffer } = parseDataUrl(dataUrl)
+    const bucket = getAdminStorage().bucket()
+    const fileRef = bucket.file(filePath)
+
+    await fileRef.save(buffer, {
+      contentType,
+      resumable: false,
+    })
+    const [downloadUrl] = await fileRef.getSignedUrl({
+      action: 'read',
+      expires: '03-01-2500',
+    })
+
+    return res.status(200).json({ downloadUrl, filePath, fileName: safeName, variantKey })
+  } catch (error) {
+    return res.status(500).json({
+      message: 'Error al subir la imagen.',
+      error: error.message || 'Error desconocido',
+    })
+  }
+}

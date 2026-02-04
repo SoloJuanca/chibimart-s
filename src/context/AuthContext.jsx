@@ -1,6 +1,7 @@
-import { createContext, useContext, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 
 const STORAGE_KEY = 'chibimart_auth'
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000'
 
 const AuthContext = createContext(null)
 
@@ -26,6 +27,41 @@ export const AuthProvider = ({ children }) => {
     }),
     [auth],
   )
+
+  useEffect(() => {
+    if (!auth?.email) return
+    let isMounted = true
+
+    const fetchUser = async () => {
+      try {
+        const response = await fetch(
+          `${API_URL}/api/auth/me?email=${encodeURIComponent(auth.email)}`,
+        )
+        if (!response.ok) return
+        const data = await response.json()
+        if (!isMounted) return
+        if (!data?.email) return
+        setAuthState({
+          id: data.id,
+          email: data.email,
+          firstName: data.firstName || '',
+          lastName: data.lastName || '',
+          phone: data.phone || '',
+          phonePrefix: data.phonePrefix || null,
+          verified: Boolean(data.verified),
+          roles: data.roles || ['CUSTOMER'],
+          isAdmin: Boolean(data.isAdmin),
+        })
+      } catch (error) {
+        // Keep local auth state if the API is not available.
+      }
+    }
+
+    fetchUser()
+    return () => {
+      isMounted = false
+    }
+  }, [auth?.email])
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
 }

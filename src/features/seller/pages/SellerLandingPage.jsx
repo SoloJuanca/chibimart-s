@@ -16,15 +16,41 @@ function SellerLandingPage() {
     return Array.from(new Set([...base, 'SELLER_PENDING']))
   }, [auth?.roles])
 
-  const handleStart = () => {
+  const handleStart = async () => {
     if (!auth?.email) {
       navigate('/login')
       return
     }
-    setAuth({
-      ...auth,
-      roles: nextRoles,
-    })
+    try {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:4000'}/api/auth/roles`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ email: auth.email, role: 'SELLER_PENDING' }),
+      })
+      if (response.ok) {
+        const data = await response.json()
+        setAuth({
+          id: data.id || auth.id,
+          email: data.email || auth.email,
+          firstName: data.firstName || auth.firstName,
+          lastName: data.lastName || auth.lastName,
+          phone: data.phone || auth.phone || '',
+          verified: data.verified ?? auth.verified,
+          roles: data.roles || nextRoles,
+          isAdmin: data.isAdmin ?? auth.isAdmin ?? false,
+        })
+      } else {
+        setAuth({
+          ...auth,
+          roles: nextRoles,
+        })
+      }
+    } catch (error) {
+      setAuth({
+        ...auth,
+        roles: nextRoles,
+      })
+    }
     navigate('/seller/apply')
   }
 

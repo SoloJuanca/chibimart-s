@@ -1,7 +1,16 @@
 import './env.js'
 import express from 'express'
 import cors from 'cors'
-import { registerUser, loginUser, verifyUser } from './controllers/authController.js'
+import { registerUser, loginUser, verifyUser, getCurrentUser, addUserRole, getSellers } from './controllers/authController.js'
+import {
+  getListingDraftByUser,
+  getListingById,
+  listListingsByUser,
+  upsertListing,
+  publishListing,
+  uploadListingImage,
+  uploadListingVariantImage,
+} from './controllers/listingsController.js'
 import { uploadSellerDocument, uploadShopProfilePicture } from './controllers/sellerController.js'
 import {
   getSellerApplicationByUser,
@@ -23,6 +32,16 @@ app.get('/api/health', (_, res) => {
 app.post('/api/auth/register', registerUser)
 app.post('/api/auth/login', loginUser)
 app.post('/api/auth/verify', verifyUser)
+app.get('/api/auth/me', getCurrentUser)
+app.post('/api/auth/roles', addUserRole)
+app.get('/api/admin/sellers', getSellers)
+app.get('/api/listings', getListingDraftByUser)
+app.get('/api/listings/by-id', getListingById)
+app.get('/api/listings/user', listListingsByUser)
+app.post('/api/listings', upsertListing)
+app.post('/api/listings/publish', publishListing)
+app.post('/api/listings/images', uploadListingImage)
+app.post('/api/listings/variant-images', uploadListingVariantImage)
 app.post('/api/seller/shop-profile-picture', uploadShopProfilePicture)
 app.post('/api/seller/documents', uploadSellerDocument)
 app.get('/api/seller/applications', (req, res) => {

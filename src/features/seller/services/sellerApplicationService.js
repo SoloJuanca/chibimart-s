@@ -43,3 +43,7 @@ export const filterSellerApplications = async ({ search = '', status = 'ALL' }) 
   if (status) query.set('status', status)
   return request(`/api/seller/applications?${query.toString()}`)
 }
+
+export const listSellers = async () => {
+  return request('/api/admin/sellers')
+}

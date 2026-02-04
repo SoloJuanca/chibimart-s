@@ -189,6 +189,12 @@ export const reviewSellerApplication = async (req, res) => {
 
     const reviewedAt = new Date().toISOString()
     const appRef = doc(firestore, 'sellerApplications', applicationId)
+    const existing = await getDoc(appRef)
+    if (!existing.exists()) {
+      return res.status(404).json({ message: 'Solicitud no encontrada.' })
+    }
+    const existingData = existing.data()
+
     await updateDoc(appRef, {
       status,
       reviewedAt,
@@ -196,6 +202,20 @@ export const reviewSellerApplication = async (req, res) => {
       updatedAt: reviewedAt,
     })
     const updated = await getDoc(appRef)
+
+    if (status === 'APPROVED' && existingData?.userId) {
+      const userRef = doc(firestore, 'users', existingData.userId)
+      const userSnap = await getDoc(userRef)
+      if (userSnap.exists()) {
+        const userData = userSnap.data()
+        const currentRoles = Array.isArray(userData.roles) ? userData.roles : ['CUSTOMER']
+        const nextRoles = Array.from(new Set([...currentRoles, 'SELLER'])).filter(
+          (role) => role !== 'SELLER_PENDING',
+        )
+        await updateDoc(userRef, { roles: nextRoles })
+      }
+    }
+
     return res.status(200).json({ id: updated.id, ...withDefaults(updated.data()) })
   } catch (error) {
     return res.status(500).json({

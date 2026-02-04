@@ -6,9 +6,27 @@ import { sendVerificationEmail } from '../services/brevo.js'
 
 const usersCollection = collection(firestore, 'users')
 
+const buildUserPayload = (userDoc, userData, overrides = {}) => {
+  const hasRoles = Array.isArray(userData.roles) && userData.roles.length > 0
+  const hasAdminFlag = typeof userData.isAdmin === 'boolean'
+
+  return {
+    id: userDoc.id,
+    firstName: userData.firstName || '',
+    lastName: userData.lastName || '',
+    email: userData.email,
+    phone: userData.phone || null,
+    phonePrefix: userData.phonePrefix || null,
+    roles: hasRoles ? userData.roles : ['CUSTOMER'],
+    isAdmin: hasAdminFlag ? userData.isAdmin : false,
+    verified: Boolean(userData.verified),
+    ...overrides,
+  }
+}
+
 export const registerUser = async (req, res) => {
   try {
-    const { firstName, lastName, email, password, phone, birthday, acceptedTerms } = req.body
+    const { firstName, lastName, email, password, phone, phonePrefix, birthday, acceptedTerms } = req.body
 
     if (!firstName || !lastName || !email || !password || !birthday) {
       return res.status(400).json({ message: 'Campos obligatorios faltantes.' })
@@ -39,6 +57,7 @@ export const registerUser = async (req, res) => {
       email,
       passwordHash,
       phone: phone || null,
+      phonePrefix: phonePrefix || null,
       birthday,
       acceptedTerms,
       verified: false,
@@ -57,6 +76,7 @@ export const registerUser = async (req, res) => {
       lastName,
       email,
       phone: phone || null,
+      phonePrefix: phonePrefix || null,
       roles: ['CUSTOMER'],
       isAdmin: false,
       message: 'Registro exitoso. Revisa tu correo para verificar.',
@@ -111,18 +131,77 @@ export const loginUser = async (req, res) => {
       })
     }
 
-    return res.status(200).json({
-      id: userDoc.id,
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      email: userData.email,
-      phone: userData.phone || null,
-      roles: hasRoles ? userData.roles : ['CUSTOMER'],
-      isAdmin: hasAdminFlag ? userData.isAdmin : false,
-      verified: true,
-    })
+    return res.status(200).json(
+      buildUserPayload(userDoc, userData, {
+        roles: hasRoles ? userData.roles : ['CUSTOMER'],
+        isAdmin: hasAdminFlag ? userData.isAdmin : false,
+        verified: true,
+      }),
+    )
   } catch (error) {
     return res.status(500).json({ message: 'Error al iniciar sesión.', error: error.message || 'Error desconocido' })
+  }
+}
+
+export const getCurrentUser = async (req, res) => {
+  try {
+    const email = req.query?.email || req.body?.email
+    if (!email) {
+      return res.status(400).json({ message: 'Correo es obligatorio.' })
+    }
+
+    const userQuery = query(usersCollection, where('email', '==', email), limit(1))
+    const snapshot = await getDocs(userQuery)
+    if (snapshot.empty) {
+      return res.status(404).json({ message: 'Usuario no encontrado.' })
+    }
+
+    const userDoc = snapshot.docs[0]
+    const userData = userDoc.data()
+    return res.status(200).json(buildUserPayload(userDoc, userData))
+  } catch (error) {
+    return res.status(500).json({ message: 'Error al obtener usuario.', error: error.message || 'Error desconocido' })
+  }
+}
+
+export const addUserRole = async (req, res) => {
+  try {
+    const { email, role } = req.body
+    if (!email || !role) {
+      return res.status(400).json({ message: 'Correo y rol son obligatorios.' })
+    }
+
+    const userQuery = query(usersCollection, where('email', '==', email), limit(1))
+    const snapshot = await getDocs(userQuery)
+    if (snapshot.empty) {
+      return res.status(404).json({ message: 'Usuario no encontrado.' })
+    }
+
+    const userDoc = snapshot.docs[0]
+    const userData = userDoc.data()
+    const currentRoles = Array.isArray(userData.roles) ? userData.roles : ['CUSTOMER']
+    const nextRoles = Array.from(new Set([...currentRoles, role]))
+
+    await updateDoc(doc(firestore, 'users', userDoc.id), { roles: nextRoles })
+
+    return res.status(200).json(
+      buildUserPayload(userDoc, { ...userData, roles: nextRoles }),
+    )
+  } catch (error) {
+    return res.status(500).json({ message: 'Error al actualizar roles.', error: error.message || 'Error desconocido' })
+  }
+}
+
+export const getSellers = async (req, res) => {
+  try {
+    const snapshot = await getDocs(query(usersCollection, where('roles', 'array-contains', 'SELLER')))
+    const results = snapshot.docs.map((userDoc) => {
+      const userData = userDoc.data()
+      return buildUserPayload(userDoc, userData)
+    })
+    return res.status(200).json(results)
+  } catch (error) {
+    return res.status(500).json({ message: 'Error al obtener vendedores.', error: error.message || 'Error desconocido' })
   }
 }
 
@@ -144,7 +223,10 @@ export const verifyUser = async (req, res) => {
     const userData = userDoc.data()
 
     if (userData.verified) {
-      return res.status(200).json({ message: 'Cuenta ya verificada.' })
+      return res.status(200).json({
+        message: 'Cuenta ya verificada.',
+        ...buildUserPayload(userDoc, userData, { verified: true }),
+      })
     }
 
     if (userData.verificationCode !== code) {
@@ -162,7 +244,10 @@ export const verifyUser = async (req, res) => {
       verifiedAt: new Date().toISOString(),
     })
 
-    return res.status(200).json({ message: 'Cuenta verificada.' })
+    return res.status(200).json({
+      message: 'Cuenta verificada.',
+      ...buildUserPayload(userDoc, { ...userData, verified: true }),
+    })
   } catch (error) {
     return res.status(500).json({ message: 'Error al verificar cuenta.', error: error.message || 'Error desconocido' })
   }

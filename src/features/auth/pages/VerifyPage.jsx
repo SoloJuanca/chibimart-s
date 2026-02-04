@@ -40,7 +40,16 @@ function VerifyPage() {
         return
       }
 
-      setAuth({ ...auth, verified: true, roles: auth.roles || ['CUSTOMER'] })
+      setAuth({
+        id: data.id || auth.id,
+        email: data.email || auth.email,
+        firstName: data.firstName || auth.firstName,
+        lastName: data.lastName || auth.lastName,
+        phone: data.phone || auth.phone || '',
+        verified: data.verified ?? true,
+        roles: data.roles || auth.roles || ['CUSTOMER'],
+        isAdmin: data.isAdmin ?? auth.isAdmin ?? false,
+      })
       setStatus({ loading: false, error: '', success: 'Cuenta verificada.' })
       navigate('/welcome')
     } catch (error) {

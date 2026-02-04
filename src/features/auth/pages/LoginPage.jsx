@@ -68,51 +68,50 @@ function LoginPage() {
       <Header categories={navCategories} />
       <main className={styles.page}>
         <Container>
-          <div className={styles.layout}>
-            <div className={styles.intro}>
-              <h1>Bienvenido de nuevo</h1>
-              <p>Inicia sesión para continuar con tus compras y ventas.</p>
-            </div>
-            <section className={styles.card}>
-              <h2>Inicio de sesión</h2>
-              <form className={styles.form} onSubmit={handleSubmit}>
-                <div className={styles.field}>
-                  <label htmlFor="login-email">Correo</label>
-                  <input
-                    id="login-email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    value={form.email}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                <div className={styles.field}>
-                  <label htmlFor="login-password">Contraseña</label>
-                  <input
-                    id="login-password"
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    value={form.password}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                {status.error && <div className={styles.error}>{status.error}</div>}
-                <button className={styles.primaryButton} type="submit" disabled={status.loading}>
-                  {status.loading ? 'Ingresando...' : 'Iniciar sesión'}
-                </button>
-              </form>
-              <p className={styles.inlineActions}>
-                ¿No tienes cuenta?{' '}
-                <Link className={styles.linkText} to="/register">
-                  Crea una aquí
-                </Link>
-              </p>
-            </section>
-          </div>
+          <section className={styles.panel} aria-labelledby="login-title">
+            <header className={styles.panelHeader}>
+              <h1 id="login-title">Inicia sesión</h1>
+              <p>Accede para continuar con tus compras y ventas.</p>
+            </header>
+            <form className={styles.form} onSubmit={handleSubmit}>
+              <div className={styles.field}>
+                <label htmlFor="login-email">Correo</label>
+                <input
+                  id="login-email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  placeholder="Escribe aqui..."
+                  value={form.email}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              <div className={styles.field}>
+                <label htmlFor="login-password">Contraseña</label>
+                <input
+                  id="login-password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  placeholder="Escribe aqui..."
+                  value={form.password}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+              {status.error && <div className={styles.error}>{status.error}</div>}
+              <button className={styles.primaryButton} type="submit" disabled={status.loading}>
+                {status.loading ? 'Ingresando...' : 'Iniciar sesión'}
+              </button>
+            </form>
+            <p className={styles.inlineActions}>
+              ¿No tienes cuenta?{' '}
+              <Link className={styles.linkText} to="/register">
+                Crea una aquí
+              </Link>
+            </p>
+          </section>
         </Container>
       </main>
       <Footer />

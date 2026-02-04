@@ -9,6 +9,7 @@ import SellerApplyPage from './features/seller/pages/SellerApplyPage'
 import SellerAdminPage from './features/seller/pages/SellerAdminPage'
 import SellerLandingPage from './features/seller/pages/SellerLandingPage'
 import SellerListingsPage from './features/seller/pages/SellerListingsPage'
+import SellerMyListingsPage from './features/seller/pages/SellerMyListingsPage'
 import { AuthProvider } from './context/AuthContext'
 
 function App() {
@@ -25,6 +26,8 @@ function App() {
           <Route path="/seller" element={<SellerLandingPage />} />
           <Route path="/seller/apply" element={<SellerApplyPage />} />
           <Route path="/seller/listings" element={<SellerListingsPage />} />
+          <Route path="/seller/listings/:listingId" element={<SellerListingsPage />} />
+          <Route path="/seller/products" element={<SellerMyListingsPage />} />
           <Route path="/admin/sellers" element={<SellerAdminPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
