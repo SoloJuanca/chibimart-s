@@ -5,6 +5,7 @@ import Header from '../../components/layout/Header'
 import Footer from '../../components/layout/Footer'
 import { navCategories } from '../../data/categories'
 import { useAuth } from '../../context/AuthContext'
+import { useCart } from '../../context/CartContext'
 import SearchListingsGrid from '../search/components/SearchListingsGrid'
 import {
   answerListingQuestion,
@@ -37,6 +38,7 @@ const getGalleryImages = (listing) => {
 function ProductPage() {
   const { listingId } = useParams()
   const { auth } = useAuth()
+  const { addItem } = useCart()
   const userId = auth?.id || auth?.email || ''
   const [listing, setListing] = useState(null)
   const [activeImage, setActiveImage] = useState('')
@@ -161,6 +163,21 @@ function ProductPage() {
     hasVariants && variantPrice !== undefined && variantPrice !== null && variantPrice !== ''
       ? variantPrice
       : listing?.pricing?.price
+  const selectedVariant = variantOptions.find((item) => item.index === selectedVariantIndex)?.option
+
+  const parsePrice = (value) => {
+    if (value === null || value === undefined || value === '') return 0
+    if (typeof value === 'number' && Number.isFinite(value)) return value
+    const numeric = Number(String(value).replace(/[^0-9.-]/g, ''))
+    return Number.isFinite(numeric) ? numeric : 0
+  }
+
+  const buildCartDescription = (text) => {
+    if (!text) return ''
+    const normalized = String(text).trim()
+    if (normalized.length <= 90) return normalized
+    return `${normalized.slice(0, 90)}...`
+  }
 
   const handleSubmitQuestion = async (event) => {
     event.preventDefault()
@@ -226,6 +243,29 @@ function ProductPage() {
 
   const handleZoomLeave = () => {
     setZoomOrigin({ x: '50%', y: '50%' })
+  }
+
+  const handleAddToCart = () => {
+    if (!listing) return
+    const variantKey = hasVariants ? `0-${selectedVariantIndex}` : 'default'
+    const cartItem = {
+      key: `${listingId}-${variantKey}`,
+      id: listingId,
+      title: listing.basic?.title || 'Producto',
+      condition: listing.basic?.condition || 'Nuevo',
+      quantity: 1,
+      description: buildCartDescription(listing.basic?.description),
+      size: listing.basic?.size || '',
+      price: parsePrice(displayPrice),
+      image: activeImage || galleryImages[0] || '/images/cart-placeholder.svg',
+      imageAlt: listing.basic?.title || 'Producto',
+      sellerId: listing.userId || '',
+      sellerName: listing.sellerName || listing.seller?.name || 'Vendedor',
+      sellerLabel: 'Productos vendidos por',
+      variantLabel: selectedVariant || '',
+      shipping: listing.shipping || null,
+    }
+    addItem(cartItem)
   }
 
   return (
@@ -382,7 +422,7 @@ function ProductPage() {
                       <span>Stock</span>
                       <strong>{listing.basic?.stock || 'Disponible'}</strong>
                     </div>
-                    <button className={styles.primaryButton} type="button">
+                    <button className={styles.primaryButton} type="button" onClick={handleAddToCart}>
                       Agregar al carrito
                     </button>
                   </div>

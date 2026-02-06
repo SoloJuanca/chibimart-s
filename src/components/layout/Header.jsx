@@ -74,9 +74,9 @@ function Header({ categories }) {
             <Link className={styles.iconButton} to="/favorites" aria-label="Favoritos">
               <img src="/icons/heart.svg" alt="" />
             </Link>
-            <button className={styles.iconButton} type="button" aria-label="Carrito">
+            <Link className={styles.iconButton} to="/cart" aria-label="Carrito">
               <img src="/icons/cart.svg" alt="" />
-            </button>
+            </Link>
             {auth?.email ? (
               <div className={styles.menuWrap}>
                 <button

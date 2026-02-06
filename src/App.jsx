@@ -7,35 +7,42 @@ import WelcomePage from './features/search/WelcomePage'
 import SearchPage from './features/search/SearchPage'
 import FavoritesPage from './features/favorites/FavoritesPage'
 import ProductPage from './features/product/ProductPage'
+import CartPage from './features/cart/CartPage'
+import CheckoutPage from './features/checkout/CheckoutPage'
 import SellerApplyPage from './features/seller/pages/SellerApplyPage'
 import SellerAdminPage from './features/seller/pages/SellerAdminPage'
 import SellerLandingPage from './features/seller/pages/SellerLandingPage'
 import SellerListingsPage from './features/seller/pages/SellerListingsPage'
 import SellerMyListingsPage from './features/seller/pages/SellerMyListingsPage'
 import { AuthProvider } from './context/AuthContext'
+import { CartProvider } from './context/CartContext'
 
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/verify" element={<VerifyPage />} />
-          <Route path="/welcome" element={<WelcomePage />} />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/product/:listingId" element={<ProductPage />} />
-          <Route path="/favorites" element={<FavoritesPage />} />
-          <Route path="/seller" element={<SellerLandingPage />} />
-          <Route path="/seller/apply" element={<SellerApplyPage />} />
-          <Route path="/seller/listings" element={<SellerListingsPage />} />
-          <Route path="/seller/listings/:listingId" element={<SellerListingsPage />} />
-          <Route path="/seller/products" element={<SellerMyListingsPage />} />
-          <Route path="/admin/sellers" element={<SellerAdminPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+      <CartProvider>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/verify" element={<VerifyPage />} />
+            <Route path="/welcome" element={<WelcomePage />} />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/product/:listingId" element={<ProductPage />} />
+            <Route path="/favorites" element={<FavoritesPage />} />
+            <Route path="/cart" element={<CartPage />} />
+          <Route path="/checkout" element={<CheckoutPage />} />
+            <Route path="/seller" element={<SellerLandingPage />} />
+            <Route path="/seller/apply" element={<SellerApplyPage />} />
+            <Route path="/seller/listings" element={<SellerListingsPage />} />
+            <Route path="/seller/listings/:listingId" element={<SellerListingsPage />} />
+            <Route path="/seller/products" element={<SellerMyListingsPage />} />
+            <Route path="/admin/sellers" element={<SellerAdminPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </CartProvider>
     </AuthProvider>
   )
 }

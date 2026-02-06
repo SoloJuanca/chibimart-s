@@ -13,9 +13,18 @@ import {
 import SellerProfileStep from '../components/SellerProfileStep'
 import SellerShippingStep from '../components/SellerShippingStep'
 import SellerValidationStep from '../components/SellerValidationStep'
+import SellerPaymentsStep from '../components/SellerPaymentsStep'
 import styles from './SellerApplyPage.module.css'
 
 const NATIONALITIES = ['México', 'Argentina', 'Chile', 'Colombia', 'Perú', 'España']
+const COUNTRY_CODE_MAP = {
+  México: 'MX',
+  Argentina: 'AR',
+  Chile: 'CL',
+  Colombia: 'CO',
+  Perú: 'PE',
+  España: 'ES',
+}
 const PHONE_CODES = [
   { label: '🇲🇽 +52', value: '+52' },
   { label: '🇺🇸 +1', value: '+1' },
@@ -32,6 +41,7 @@ const STEP_LABELS = {
   profile: 'Datos',
   shipping: 'Configuración envíos',
   validation: 'Validación',
+  payments: 'Pagos',
 }
 
 const formatDate = (value) => {
@@ -41,6 +51,10 @@ const formatDate = (value) => {
     month: 'short',
     year: 'numeric',
   })
+}
+
+const resolveCountryCode = (value) => {
+  return COUNTRY_CODE_MAP[value] || 'MX'
 }
 
 const getDocumentType = (fileName, existingDocs) => {
@@ -436,6 +450,7 @@ function SellerApplyPage() {
   const isSubmitted = application.status === 'SUBMITTED'
   const isApproved = application.status === 'APPROVED'
   const isRejected = application.status === 'REJECTED'
+  const canAccessPayments = auth?.roles?.includes('SELLER')
   const statusLabel = isApproved
     ? 'Aprobado'
     : isSubmitted
@@ -446,9 +461,11 @@ function SellerApplyPage() {
     profile: 33,
     shipping: 66,
     validation: 100,
+    payments: 100,
   }
   const progressValue =
     isSubmitted || isApproved || isRejected ? 100 : stepProgress[activeStep] || 0
+  const stripeCountry = resolveCountryCode(application.profileData.nationality)
 
   if (loading) {
     return (
@@ -520,6 +537,17 @@ function SellerApplyPage() {
               >
                 Validación
               </button>
+              {canAccessPayments && (
+                <button
+                  type="button"
+                  className={`${styles.stepButton} ${
+                    activeStep === 'payments' ? styles.stepButtonActive : ''
+                  }`}
+                  onClick={() => setActiveStep('payments')}
+                >
+                  Pagos
+                </button>
+              )}
             </aside>
 
             <section className={styles.content}>
@@ -579,6 +607,22 @@ function SellerApplyPage() {
                   onSubmitValidation={handleSubmitValidation}
                   onEditSubmission={handleEditSubmission}
                 />
+              )}
+
+              {activeStep === 'payments' && canAccessPayments && (
+                <SellerPaymentsStep
+                  userId={userId}
+                  email={application.profileData.email || auth?.email}
+                  country={stripeCountry}
+                />
+              )}
+              {activeStep === 'payments' && !canAccessPayments && (
+                <div className={styles.card}>
+                  <h2>Información de pago</h2>
+                  <p className={styles.helperText}>
+                    Esta sección estará disponible cuando tu perfil de vendedor haya sido aprobado.
+                  </p>
+                </div>
               )}
             </section>
           </div>

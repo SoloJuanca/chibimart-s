@@ -287,6 +287,31 @@ export const publishListing = async (req, res) => {
 
     const now = new Date().toISOString()
     const listingRef = doc(firestore, 'listings', listingId)
+    const listingSnap = await getDoc(listingRef)
+    if (!listingSnap.exists()) {
+      return res.status(404).json({ message: 'Listing no encontrado.' })
+    }
+
+    const listingData = listingSnap.data()
+    const userId = listingData?.userId
+    if (!userId) {
+      return res.status(400).json({ message: 'Listing sin vendedor asignado.' })
+    }
+
+    const userRef = doc(firestore, 'users', userId)
+    const userSnap = await getDoc(userRef)
+    if (!userSnap.exists()) {
+      return res.status(404).json({ message: 'Vendedor no encontrado.' })
+    }
+
+    const userData = userSnap.data()
+    const stripeReady = Boolean(userData?.stripeAccountId && userData?.stripeOnboardingComplete)
+    if (!stripeReady) {
+      return res.status(409).json({
+        message: 'Completa la información de pagos con Stripe antes de publicar.',
+      })
+    }
+
     await updateDoc(listingRef, {
       status: 'PUBLISHED',
       publishedAt: now,

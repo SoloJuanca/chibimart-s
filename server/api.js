@@ -23,6 +23,13 @@ import { listReviewsBySeller } from './controllers/reviewsController.js'
 import { uploadSellerDocument, uploadShopProfilePicture } from './controllers/sellerController.js'
 import { listFavoritesByUser, toggleFavorite } from './controllers/favoritesController.js'
 import {
+  createConnectAccount,
+  createConnectAccountLink,
+  createPaymentIntent,
+  createTransfersForGroup,
+  getConnectStatus,
+} from './controllers/stripeController.js'
+import {
   getSellerApplicationByUser,
   listSellerApplications,
   reviewSellerApplication,
@@ -72,6 +79,11 @@ app.get('/api/seller/applications', (req, res) => {
 app.post('/api/seller/applications', upsertSellerApplication)
 app.post('/api/seller/applications/submit', submitSellerApplication)
 app.post('/api/seller/applications/review', reviewSellerApplication)
+app.post('/api/stripe/payment-intents', createPaymentIntent)
+app.post('/api/stripe/transfers', createTransfersForGroup)
+app.post('/api/stripe/connect/account', createConnectAccount)
+app.post('/api/stripe/connect/link', createConnectAccountLink)
+app.get('/api/stripe/connect/status', getConnectStatus)
 
 const PORT = process.env.PORT || 4000
 app.listen(PORT, () => {
