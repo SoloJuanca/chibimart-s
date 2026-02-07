@@ -8,6 +8,54 @@
   max-width: 720px;
 }
 
+.layout {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: var(--space-24);
+  align-items: start;
+}
+
+.sidebar {
+  position: sticky;
+  top: var(--space-24);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-20);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.sidebarLabel {
+  font-size: 12px;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.stepNavButton {
+  border: 1px solid var(--color-border);
+  background: transparent;
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  text-align: left;
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.stepNavButton:hover {
+  border-color: var(--color-accent);
+  background: var(--color-surface-alt);
+}
+
+.stepNavButtonActive {
+  border-color: var(--color-accent);
+  background: rgba(245, 198, 166, 0.25);
+  font-weight: 600;
+}
+
 .headerRow {
   margin-bottom: var(--space-24);
   display: flex;
@@ -615,6 +663,14 @@
   background: transparent;
 }
 
+.shippingRow select {
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  padding: 6px 2px;
+  background: transparent;
+  font-size: 14px;
+}
+
 .summaryCard {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -657,6 +713,14 @@
 }
 
 @media (max-width: 960px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+  }
+
   .confirmationGrid {
     grid-template-columns: 1fr;
   }

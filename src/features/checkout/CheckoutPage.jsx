@@ -11,7 +11,7 @@ import StripePaymentForm from './components/StripePaymentForm'
 import { createPaymentIntent, createTransfers } from './services/stripeCheckoutService'
 import styles from './CheckoutPage.module.css'
 
-const countryOptions = ['México', 'Estados Unidos', 'Colombia', 'España', 'Argentina', 'Chile']
+const countryOptions = ['México', 'Estados Unidos', 'Colombia', 'España', 'Argentina', 'Chile', 'Perú']
 const STRIPE_PUBLIC_KEY = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY
 const stripePromise = STRIPE_PUBLIC_KEY ? loadStripe(STRIPE_PUBLIC_KEY) : null
 const PAYMENT_FORM_ID = 'stripe-payment-form'
@@ -25,14 +25,14 @@ const formatCurrency = (value) => {
   return `$${formatted} MXN`
 }
 
+const normalizeCountry = (value) => String(value || '').trim().toLowerCase()
+
 const resolveShippingPrice = (shipping, country) => {
   if (!shipping) return null
   if (shipping.freeShipping) return 0
   const rows = Array.isArray(shipping.rows) ? shipping.rows : []
-  const match = rows.find((row) =>
-    String(row.destination || '')
-      .toLowerCase()
-      .includes(String(country || '').toLowerCase()),
+  const match = rows.find(
+    (row) => normalizeCountry(row.country || row.destination) === normalizeCountry(country),
   )
   if (!match) return null
   const parsed = Number(String(match.price).replace(/[^0-9.-]/g, ''))
@@ -122,6 +122,13 @@ function CheckoutPage() {
     )
     if (values.some((value) => value === null)) return null
     return values.reduce((total, value) => total + (value || 0), 0)
+  }, [cartGroups, address.country])
+
+  const missingShippingCount = useMemo(() => {
+    return Object.values(cartGroups).reduce((count, group) => {
+      const price = resolveShippingPrice(group.shipping, address.country)
+      return price === null ? count + 1 : count
+    }, 0)
   }, [cartGroups, address.country])
 
   const hasAddress =
@@ -370,7 +377,9 @@ function CheckoutPage() {
               {!items.length && <p className={styles.helperText}>Tu carrito está vacío.</p>}
               {items.length > 0 && shippingTotal === null && (
                 <p className={styles.helperText}>
-                  No encontramos una tarifa de envío para el país seleccionado.
+                  {missingShippingCount > 1
+                    ? `Hay ${missingShippingCount} vendedores que no envían a ${address.country}.`
+                    : `Este vendedor no realiza envíos a ${address.country}.`}
                 </p>
               )}
             </aside>

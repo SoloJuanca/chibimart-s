@@ -10,6 +10,17 @@ function ListingCard({ listing, stockValue, onStockChange, onStockSave, saving }
   }
 
   const coverImage = getCoverImage(listing)
+  const variantPrices = Object.values(listing?.pricing?.variantPrices || {})
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && value > 0)
+  const hasVariantPrices = variantPrices.length > 0 && listing?.basic?.hasVariants === 'yes'
+  const minVariantPrice = hasVariantPrices ? Math.min(...variantPrices) : null
+  const maxVariantPrice = hasVariantPrices ? Math.max(...variantPrices) : null
+  const priceLabel = hasVariantPrices
+    ? minVariantPrice === maxVariantPrice
+      ? `${minVariantPrice.toFixed(2)}`
+      : `${minVariantPrice.toFixed(2)} - ${maxVariantPrice.toFixed(2)}`
+    : listing.pricing?.price || '0.00'
 
   return (
     <article className={styles.card}>
@@ -28,7 +39,7 @@ function ListingCard({ listing, stockValue, onStockChange, onStockSave, saving }
         <p>{listing.basic?.description || 'Sin descripción'}</p>
         <div className={styles.metaRow}>
           <span>{listing.category?.category || 'Sin categoría'}</span>
-          <span>${listing.pricing?.price || '0.00'} MXN</span>
+          <span>${priceLabel} MXN</span>
         </div>
         <Link className={styles.editLink} to={`/seller/listings/${listing.id}`}>
           Editar listing

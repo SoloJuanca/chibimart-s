@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Toaster, toast } from 'react-hot-toast'
 import Container from '../../../components/layout/Container'
 import Header from '../../../components/layout/Header'
 import Footer from '../../../components/layout/Footer'
@@ -48,17 +49,48 @@ function SellerListingsPage() {
   const [price, setPrice] = useState('100.00')
   const [shippingMode, setShippingMode] = useState('self')
   const [freeShipping, setFreeShipping] = useState(false)
+  const SHIPPING_COUNTRIES = [
+    'México',
+    'Estados Unidos',
+    'Colombia',
+    'España',
+    'Argentina',
+    'Chile',
+    'Perú',
+  ]
   const defaultShippingRows = [
-    { id: 'row-1', destination: 'Dentro de México', price: '50' },
-    { id: 'row-2', destination: 'Norteamerica', price: '400' },
-    { id: 'row-3', destination: 'Europa', price: '500' },
+    { id: 'row-1', country: 'México', price: '50' },
+    { id: 'row-2', country: 'Estados Unidos', price: '400' },
+    { id: 'row-3', country: 'España', price: '500' },
   ]
   const [shippingRows, setShippingRows] = useState(defaultShippingRows)
   const [listingId, setListingId] = useState(listingIdParam || null)
+  const normalizeCountryValue = (value) => {
+    const normalized = String(value || '').trim().toLowerCase()
+    if (!normalized) return ''
+    const directMatch = SHIPPING_COUNTRIES.find(
+      (country) => country.toLowerCase() === normalized,
+    )
+    if (directMatch) return directMatch
+    if (normalized.includes('mex')) return 'México'
+    if (normalized.includes('usa') || normalized.includes('eeuu') || normalized.includes('estados') || normalized.includes('norteamerica') || normalized.includes('norteamérica')) {
+      return 'Estados Unidos'
+    }
+    if (normalized.includes('colombia')) return 'Colombia'
+    if (normalized.includes('espana') || normalized.includes('españa') || normalized.includes('europa')) {
+      return 'España'
+    }
+    if (normalized.includes('argentina')) return 'Argentina'
+    if (normalized.includes('chile')) return 'Chile'
+    if (normalized.includes('peru') || normalized.includes('perú')) return 'Perú'
+    return ''
+  }
+
   const [listingStatus, setListingStatus] = useState('DRAFT')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [variantPrices, setVariantPrices] = useState({})
+  const [variantStocks, setVariantStocks] = useState({})
 
   console.log(form)
   console.log(categorySelection)
@@ -124,14 +156,20 @@ function SellerListingsPage() {
         }
         if (data.pricing?.price) setPrice(String(data.pricing.price))
         if (data.pricing?.variantPrices) setVariantPrices(data.pricing.variantPrices)
+        if (data.pricing?.variantStocks) setVariantStocks(data.pricing.variantStocks)
         if (data.shipping) {
           setShippingMode(data.shipping.mode || 'self')
           setFreeShipping(Boolean(data.shipping.freeShipping))
-          setShippingRows(
+          const incomingRows =
             Array.isArray(data.shipping.rows) && data.shipping.rows.length > 0
               ? data.shipping.rows
-              : defaultShippingRows,
-          )
+              : defaultShippingRows
+          const normalized = incomingRows.map((row, index) => ({
+            id: row.id || `row-${index + 1}`,
+            country: normalizeCountryValue(row.country || row.destination),
+            price: row.price || '',
+          }))
+          setShippingRows(normalized)
         }
         if (data.images?.photos) {
           setPhotos(data.images.photos)
@@ -206,9 +244,11 @@ function SellerListingsPage() {
       nextErrors.origin = 'Selecciona una opción.'
     }
     if (canShowCondition && !form.condition) nextErrors.condition = 'Selecciona el estado.'
-    if (!form.stock.trim()) nextErrors.stock = 'Ingresa el stock disponible.'
-    if (Number.isNaN(Number(form.stock)) || Number(form.stock) < 0) {
-      nextErrors.stock = 'Ingresa un número válido.'
+    if (form.hasVariants === 'no') {
+      if (!form.stock.trim()) nextErrors.stock = 'Ingresa el stock disponible.'
+      if (Number.isNaN(Number(form.stock)) || Number(form.stock) < 0) {
+        nextErrors.stock = 'Ingresa un número válido.'
+      }
     }
     if (!form.hasVariants) nextErrors.hasVariants = 'Selecciona una opción.'
     if (needsPhotos && photos.length < 1) nextErrors.photos = 'Sube al menos una foto.'
@@ -391,10 +431,34 @@ function SellerListingsPage() {
     setVariantPrices((prev) => ({ ...prev, [key]: value }))
   }
 
+  const handleVariantStockChange = (variantIndex, optionIndex, value) => {
+    const key = `${variantIndex}-${optionIndex}`
+    setVariantStocks((prev) => ({ ...prev, [key]: value }))
+  }
+
+  const validateVariantStocks = () => {
+    const variantOptions = variants[0]?.options || []
+    const hasInvalidStock = variantOptions.some((_, optionIndex) => {
+      const value = variantStocks[`0-${optionIndex}`]
+      return value === '' || value === undefined || Number(value) < 0
+    })
+    if (hasInvalidStock) {
+      setErrors((prev) => ({ ...prev, variantStocks: 'Completa el stock para cada variante.' }))
+      return false
+    }
+    setErrors((prev) => {
+      if (!prev.variantStocks) return prev
+      const { variantStocks: _ignored, ...rest } = prev
+      return rest
+    })
+    return true
+  }
+
   const handleSaveDraft = async ({ targetStep } = {}) => {
     if (!userId) return
     setSaving(true)
     setSaveError('')
+    const toastId = toast.loading('Guardando cambios...')
     try {
       const payload = {
         id: listingId,
@@ -412,7 +476,7 @@ function SellerListingsPage() {
         },
         category: { ...categorySelection },
         variants,
-        pricing: { price, variantPrices },
+        pricing: { price, variantPrices, variantStocks },
         shipping: { mode: shippingMode, freeShipping, rows: shippingRows },
         images: {
           photos,
@@ -420,9 +484,11 @@ function SellerListingsPage() {
         },
       }
       const saved = await upsertListing(payload)
+      toast.success('Cambios guardados.', { id: toastId })
       if (saved?.id && !listingId) setListingId(saved.id)
       return saved?.id || listingId
     } catch (error) {
+      toast.error(error?.message || 'No pudimos guardar el listing.', { id: toastId })
       setSaveError(error?.message || 'No pudimos guardar el listing.')
       return null
     } finally {
@@ -431,17 +497,17 @@ function SellerListingsPage() {
   }
 
   const handlePublish = async () => {
-    let nextId = listingId
-    if (!nextId) {
-      nextId = await handleSaveDraft({ targetStep: 4 })
-    }
+    const nextId = await handleSaveDraft({ targetStep: 4 })
     if (!nextId) return
     setSaving(true)
     setSaveError('')
+    const toastId = toast.loading('Publicando producto...')
     try {
       await publishListing(nextId)
+      toast.success('Producto publicado.', { id: toastId })
       navigate('/seller/products')
     } catch (error) {
+      toast.error(error?.message || 'No pudimos publicar el listing.', { id: toastId })
       setSaveError(error?.message || 'No pudimos publicar el listing.')
     } finally {
       setSaving(false)
@@ -455,19 +521,62 @@ function SellerListingsPage() {
     }
   }
 
+  const handleStepNavigation = async (targetStep) => {
+    if (saving || targetStep === step) return
+    const savedId = await handleSaveDraft({ targetStep: step })
+    if (!savedId) return
+    if (targetStep === 3 && form.hasVariants === 'yes') {
+      setStep3Mode('variants')
+    }
+    setStep(targetStep)
+  }
+
   return (
     <>
       <Header categories={navCategories} />
       <main className={styles.page}>
+        <Toaster position="top-right" />
         <Container>
-          <div className={styles.content}>
-            <div className={styles.headerRow}>
-              <Link className={styles.backLink} to="/seller">
-                &lsaquo; Anterior
-              </Link>
-            <span className={styles.stepLabel}>Paso {step} de 4</span>
-            <h1>{stepTitle}</h1>
-            </div>
+          <div className={styles.layout}>
+            <aside className={styles.sidebar}>
+              <span className={styles.sidebarLabel}>Pasos</span>
+              <button
+                type="button"
+                className={`${styles.stepNavButton} ${step === 1 ? styles.stepNavButtonActive : ''}`}
+                onClick={() => handleStepNavigation(1)}
+              >
+                1. Detalles
+              </button>
+              <button
+                type="button"
+                className={`${styles.stepNavButton} ${step === 2 ? styles.stepNavButtonActive : ''}`}
+                onClick={() => handleStepNavigation(2)}
+              >
+                2. Categoría
+              </button>
+              <button
+                type="button"
+                className={`${styles.stepNavButton} ${step === 3 ? styles.stepNavButtonActive : ''}`}
+                onClick={() => handleStepNavigation(3)}
+              >
+                3. Variantes
+              </button>
+              <button
+                type="button"
+                className={`${styles.stepNavButton} ${step === 4 ? styles.stepNavButtonActive : ''}`}
+                onClick={() => handleStepNavigation(4)}
+              >
+                4. Confirmación
+              </button>
+            </aside>
+            <div className={styles.content}>
+              <div className={styles.headerRow}>
+                <Link className={styles.backLink} to="/seller">
+                  &lsaquo; Anterior
+                </Link>
+                <span className={styles.stepLabel}>Paso {step} de 4</span>
+                <h1>{stepTitle}</h1>
+              </div>
 
             {step === 1 && (
               <section className={styles.card}>
@@ -570,20 +679,6 @@ function SellerListingsPage() {
                 )}
 
                 <div className={styles.field}>
-                  <label htmlFor="stock">Cantidad de artículos</label>
-                  <input
-                    id="stock"
-                    name="stock"
-                    type="number"
-                    min="0"
-                    placeholder="0"
-                    value={form.stock}
-                    onChange={handleChange}
-                  />
-                  {errors.stock && <span className={styles.error}>{errors.stock}</span>}
-                </div>
-
-                <div className={styles.field}>
                   <span className={styles.legend}>¿Este artículo tiene diferentes variantes?</span>
                   <div className={styles.radioGroup}>
                     <label className={styles.radioRow}>
@@ -609,6 +704,22 @@ function SellerListingsPage() {
                   </div>
                   {errors.hasVariants && <span className={styles.error}>{errors.hasVariants}</span>}
                 </div>
+                {console.log(form)}
+                {form.hasVariants !== "" && form.hasVariants !== 'yes' && (
+                  <div className={styles.field}>
+                    <label htmlFor="stock">Cantidad de artículos</label>
+                    <input
+                      id="stock"
+                      name="stock"
+                      type="number"
+                      min="0"
+                      placeholder="0"
+                      value={form.stock}
+                      onChange={handleChange}
+                    />
+                    {errors.stock && <span className={styles.error}>{errors.stock}</span>}
+                  </div>
+                )}
 
                 {needsPhotos && (
                   <div className={styles.photoSection}>
@@ -854,15 +965,7 @@ function SellerListingsPage() {
                         <div key={`qty-row-${optionIndex}`} className={styles.quantityRow}>
                           <div className={styles.quantityCell}>
                             <span className={styles.optionIndex}>{optionIndex + 1}.</span>
-                            <div className={styles.selectWrap}>
-                              <select>
-                                {variants[0].options.map((value, idx) => (
-                                  <option key={`${value}-${idx}`} value={value}>
-                                    {value || 'Selecciona'}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
+                              <span>{option || 'Sin especificar'}</span>
                           </div>
                           <div className={styles.quantityCell}>
                             {variantPreviewMap[`0-${optionIndex}`] ? (
@@ -885,7 +988,16 @@ function SellerListingsPage() {
                             )}
                           </div>
                           <div className={styles.quantityCell}>
-                            <input type="number" min="0" placeholder="0" />
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              placeholder="0"
+                              value={variantStocks[`0-${optionIndex}`] || ''}
+                              onChange={(event) =>
+                                handleVariantStockChange(0, optionIndex, event.target.value)
+                              }
+                            />
                           </div>
                         </div>
                       ))}
@@ -902,12 +1014,14 @@ function SellerListingsPage() {
                         className={styles.primaryButton}
                         type="button"
                         onClick={() => {
+                          if (!validateVariantStocks()) return
                           handleSaveDraft({ targetStep: 3 }).then(() => setStep(4))
                         }}
                       >
                         Continuar
                       </button>
                     </div>
+                    {errors.variantStocks && <span className={styles.error}>{errors.variantStocks}</span>}
                   </>
                 )}
               </section>
@@ -1054,18 +1168,23 @@ function SellerListingsPage() {
                     </div>
                     {shippingRows.map((row) => (
                       <div key={row.id} className={styles.shippingRow}>
-                        <input
-                          type="text"
-                          placeholder="Destino y forma de envío"
-                          value={row.destination}
+                        <select
+                          value={row.country}
                           onChange={(event) =>
                             setShippingRows((prev) =>
                               prev.map((item) =>
-                                item.id === row.id ? { ...item, destination: event.target.value } : item,
+                                item.id === row.id ? { ...item, country: event.target.value } : item,
                               ),
                             )
                           }
-                        />
+                        >
+                          <option value="">Selecciona país</option>
+                          {SHIPPING_COUNTRIES.map((country) => (
+                            <option key={country} value={country}>
+                              {country}
+                            </option>
+                          ))}
+                        </select>
                         <input
                           type="number"
                           min="0"
@@ -1088,7 +1207,7 @@ function SellerListingsPage() {
                       onClick={() =>
                         setShippingRows((prev) => [
                           ...prev,
-                          { id: `row-${prev.length + 1}`, destination: '', price: '' },
+                          { id: `row-${prev.length + 1}`, country: '', price: '' },
                         ])
                       }
                     >
@@ -1141,6 +1260,7 @@ function SellerListingsPage() {
                 {saveError && <div className={styles.error}>{saveError}</div>}
               </section>
             )}
+          </div>
           </div>
         </Container>
       </main>
