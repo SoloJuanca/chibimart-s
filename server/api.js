@@ -28,7 +28,17 @@ import {
   createPaymentIntent,
   createTransfersForGroup,
   getConnectStatus,
+  handleStripeWebhook,
 } from './controllers/stripeController.js'
+import {
+  createOrderDraft,
+  getOrderById,
+  listOrderMessages,
+  listOrdersByBuyer,
+  listOrdersBySeller,
+  sendOrderMessage,
+  updateOrderPayment,
+} from './controllers/ordersController.js'
 import {
   getSellerApplicationByUser,
   listSellerApplications,
@@ -40,6 +50,7 @@ import {
 const app = express()
 
 app.use(cors())
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), handleStripeWebhook)
 app.use(express.json({ limit: '10mb' }))
 
 app.get('/api/health', (_, res) => {
@@ -84,6 +95,13 @@ app.post('/api/stripe/transfers', createTransfersForGroup)
 app.post('/api/stripe/connect/account', createConnectAccount)
 app.post('/api/stripe/connect/link', createConnectAccountLink)
 app.get('/api/stripe/connect/status', getConnectStatus)
+app.post('/api/orders/draft', createOrderDraft)
+app.post('/api/orders/paid', updateOrderPayment)
+app.get('/api/orders', listOrdersByBuyer)
+app.get('/api/orders/seller', listOrdersBySeller)
+app.get('/api/orders/by-id', getOrderById)
+app.get('/api/orders/messages', listOrderMessages)
+app.post('/api/orders/messages', sendOrderMessage)
 
 const PORT = process.env.PORT || 4000
 app.listen(PORT, () => {

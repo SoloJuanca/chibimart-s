@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { toast } from 'react-hot-toast'
 import { useParams } from 'react-router-dom'
 import Container from '../../components/layout/Container'
 import Header from '../../components/layout/Header'
@@ -266,6 +267,7 @@ function ProductPage() {
       shipping: listing.shipping || null,
     }
     addItem(cartItem)
+    toast.success('Producto agregado al carrito.')
   }
 
   return (

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Toaster, toast } from 'react-hot-toast'
 import Container from '../../../components/layout/Container'
@@ -91,6 +91,19 @@ function SellerListingsPage() {
   const [saveError, setSaveError] = useState('')
   const [variantPrices, setVariantPrices] = useState({})
   const [variantStocks, setVariantStocks] = useState({})
+  const [cropQueue, setCropQueue] = useState([])
+  const [cropModalOpen, setCropModalOpen] = useState(false)
+  const [cropImage, setCropImage] = useState({ src: '', name: '', type: 'listing', variantKey: '' })
+  const [cropZoom, setCropZoom] = useState(1)
+  const [cropPosition, setCropPosition] = useState({ x: 0, y: 0 })
+  const [cropMetrics, setCropMetrics] = useState({
+    areaSize: 360,
+    baseScale: 1,
+    imgWidth: 0,
+    imgHeight: 0,
+  })
+  const cropAreaRef = useRef(null)
+  const cropDragRef = useRef({ dragging: false, startX: 0, startY: 0, originX: 0, originY: 0 })
 
   console.log(form)
   console.log(categorySelection)
@@ -188,6 +201,24 @@ function SellerListingsPage() {
   }, [userId, listingIdParam])
 
   useEffect(() => {
+    if (cropModalOpen || cropQueue.length === 0) return
+    const nextItem = cropQueue[0]
+    const reader = new FileReader()
+    reader.onload = () => {
+      setCropImage({
+        src: reader.result,
+        name: nextItem.file?.name || '',
+        type: nextItem.type || 'listing',
+        variantKey: nextItem.variantKey || '',
+      })
+      setCropZoom(1)
+      setCropPosition({ x: 0, y: 0 })
+      setCropModalOpen(true)
+    }
+    if (nextItem.file) reader.readAsDataURL(nextItem.file)
+  }, [cropQueue, cropModalOpen])
+
+  useEffect(() => {
     if (step === 3 && form.hasVariants === 'no') {
       setStep(4)
     }
@@ -206,33 +237,156 @@ function SellerListingsPage() {
     if (!files.length || !userId) return
     const remaining = Math.max(maxPhotos - photos.length, 0)
     const nextFiles = remaining > 0 ? files.slice(0, remaining) : []
-    for (const file of nextFiles) {
-      try {
-        const dataUrl = await new Promise((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = () => resolve(reader.result)
-          reader.onerror = () => reject(new Error('No pudimos leer el archivo.'))
-          reader.readAsDataURL(file)
-        })
-        const uploaded = await uploadListingImage({
-          userId,
-          listingId,
-          fileName: file.name,
-          dataUrl,
-        })
-        setPhotos((prev) => [
-          ...prev,
-          { url: uploaded.downloadUrl, fileName: uploaded.fileName || file.name },
-        ])
-      } catch (error) {
-        setSaveError(error?.message || 'No pudimos subir la imagen.')
-      }
+    if (nextFiles.length) {
+      setCropQueue((prev) => [
+        ...prev,
+        ...nextFiles.map((file) => ({ file, type: 'listing', variantKey: '' })),
+      ])
     }
     event.target.value = ''
   }
 
   const handleRemovePhoto = (index) => {
     setPhotos((prev) => prev.filter((_, idx) => idx !== index))
+  }
+
+  const handleCropImageLoad = (event) => {
+    const img = event.currentTarget
+    const areaSize = cropAreaRef.current?.clientWidth || 360
+    const baseScale = Math.max(areaSize / img.naturalWidth, areaSize / img.naturalHeight)
+    setCropMetrics({
+      areaSize,
+      baseScale,
+      imgWidth: img.naturalWidth,
+      imgHeight: img.naturalHeight,
+    })
+  }
+
+  const clampCropPosition = (next) => {
+    const { areaSize, baseScale, imgWidth, imgHeight } = cropMetrics
+    if (!imgWidth || !imgHeight) return next
+    const scaledWidth = imgWidth * baseScale * cropZoom
+    const scaledHeight = imgHeight * baseScale * cropZoom
+    const maxX = Math.max((scaledWidth - areaSize) / 2, 0)
+    const maxY = Math.max((scaledHeight - areaSize) / 2, 0)
+    return {
+      x: Math.max(-maxX, Math.min(maxX, next.x)),
+      y: Math.max(-maxY, Math.min(maxY, next.y)),
+    }
+  }
+
+  const handleCropPointerDown = (event) => {
+    cropDragRef.current = {
+      dragging: true,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: cropPosition.x,
+      originY: cropPosition.y,
+    }
+  }
+
+  const handleCropPointerMove = (event) => {
+    if (!cropDragRef.current.dragging) return
+    const deltaX = event.clientX - cropDragRef.current.startX
+    const deltaY = event.clientY - cropDragRef.current.startY
+    const next = clampCropPosition({
+      x: cropDragRef.current.originX + deltaX,
+      y: cropDragRef.current.originY + deltaY,
+    })
+    setCropPosition(next)
+  }
+
+  const handleCropPointerUp = () => {
+    cropDragRef.current.dragging = false
+  }
+
+  const createCroppedImage = async () => {
+    if (!cropImage.src) return null
+    const img = new Image()
+    const { areaSize, baseScale, imgWidth, imgHeight } = cropMetrics
+    img.src = cropImage.src
+    await new Promise((resolve, reject) => {
+      img.onload = resolve
+      img.onerror = reject
+    })
+
+    const canvasSize = 800
+    const canvas = document.createElement('canvas')
+    canvas.width = canvasSize
+    canvas.height = canvasSize
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+
+    const scale = baseScale * cropZoom
+    const displayWidth = imgWidth * scale
+    const displayHeight = imgHeight * scale
+    const imageX = (areaSize - displayWidth) / 2 + cropPosition.x
+    const imageY = (areaSize - displayHeight) / 2 + cropPosition.y
+    const cropX = (0 - imageX) / scale
+    const cropY = (0 - imageY) / scale
+    const cropSize = areaSize / scale
+    const clampedX = Math.max(0, Math.min(imgWidth, cropX))
+    const clampedY = Math.max(0, Math.min(imgHeight, cropY))
+    const clampedSize = Math.min(cropSize, imgWidth - clampedX, imgHeight - clampedY)
+
+    ctx.drawImage(
+      img,
+      clampedX,
+      clampedY,
+      clampedSize,
+      clampedSize,
+      0,
+      0,
+      canvasSize,
+      canvasSize,
+    )
+    return canvas.toDataURL('image/jpeg', 0.9)
+  }
+
+  const handleCropCancel = () => {
+    setCropModalOpen(false)
+    setCropImage({ src: '', name: '', type: 'listing', variantKey: '' })
+    setCropQueue((prev) => prev.slice(1))
+  }
+
+  const handleCropSave = async () => {
+    if (!userId) return
+    try {
+      const dataUrl = await createCroppedImage()
+      if (!dataUrl) return
+      if (cropImage.type === 'variant' && cropImage.variantKey) {
+        const uploaded = await uploadListingVariantImage({
+          userId,
+          listingId,
+          fileName: cropImage.name,
+          dataUrl,
+          variantKey: cropImage.variantKey,
+        })
+        setVariantImages((prev) => ({
+          ...prev,
+          [cropImage.variantKey]: [
+            ...(prev[cropImage.variantKey] || []),
+            { url: uploaded.downloadUrl, fileName: uploaded.fileName || cropImage.name },
+          ],
+        }))
+      } else {
+        const uploaded = await uploadListingImage({
+          userId,
+          listingId,
+          fileName: cropImage.name,
+          dataUrl,
+        })
+        setPhotos((prev) => [
+          ...prev,
+          { url: uploaded.downloadUrl, fileName: uploaded.fileName || cropImage.name },
+        ])
+      }
+      setCropModalOpen(false)
+      setCropImage({ src: '', name: '', type: 'listing', variantKey: '' })
+      setCropQueue((prev) => prev.slice(1))
+    } catch (error) {
+      setSaveError(error?.message || 'No pudimos subir la imagen.')
+    }
   }
 
   const validateStep = () => {
@@ -305,7 +459,8 @@ function SellerListingsPage() {
     setCategorySelection({ category: null, subcategory: null, tertiary: null })
   }
 
-  const commissionPercent = Number(import.meta.env.VITE_MARKETPLACE_COMMISSION || 5)
+  const commissionPercent =
+    Number(String(import.meta.env.VITE_MARKETPLACE_COMMISSION || '5').replace(/[^0-9.]/g, '')) || 5
   const priceValue = Number(price || 0)
   const effectivePriceValue = hasVariants
     ? Number(Object.values(variantPrices).find((value) => Number(value) > 0) || priceValue || 0)
@@ -388,31 +543,11 @@ function SellerListingsPage() {
     const existing = variantImages[key] || []
     const remaining = Math.max(maxPhotos - existing.length, 0)
     const nextFiles = remaining > 0 ? files.slice(0, remaining) : []
-    for (const file of nextFiles) {
-      try {
-        const dataUrl = await new Promise((resolve, reject) => {
-          const reader = new FileReader()
-          reader.onload = () => resolve(reader.result)
-          reader.onerror = () => reject(new Error('No pudimos leer el archivo.'))
-          reader.readAsDataURL(file)
-        })
-        const uploaded = await uploadListingVariantImage({
-          userId,
-          listingId,
-          fileName: file.name,
-          dataUrl,
-          variantKey: key,
-        })
-        setVariantImages((prev) => ({
-          ...prev,
-          [key]: [
-            ...(prev[key] || []),
-            { url: uploaded.downloadUrl, fileName: uploaded.fileName || file.name },
-          ],
-        }))
-      } catch (error) {
-        setSaveError(error?.message || 'No pudimos subir la imagen.')
-      }
+    if (nextFiles.length) {
+      setCropQueue((prev) => [
+        ...prev,
+        ...nextFiles.map((file) => ({ file, type: 'variant', variantKey: key })),
+      ])
     }
     event.target.value = ''
   }
@@ -1314,6 +1449,84 @@ function SellerListingsPage() {
             <button className={styles.primaryButton} type="button" onClick={handleCloseImageModal}>
               Guardar
             </button>
+          </div>
+        </div>
+      )}
+      {cropModalOpen && (
+        <div
+          className={styles.modalOverlay}
+          role="dialog"
+          aria-modal="true"
+          onPointerMove={handleCropPointerMove}
+          onPointerUp={handleCropPointerUp}
+          onPointerLeave={handleCropPointerUp}
+        >
+          <div className={styles.modal}>
+            <div className={styles.modalHeader}>
+              <h3>Ajustar imagen</h3>
+              <button type="button" onClick={handleCropCancel} aria-label="Cerrar">
+                ×
+              </button>
+            </div>
+            <div className={styles.cropLayout}>
+              <div className={styles.cropArea} ref={cropAreaRef} onPointerDown={handleCropPointerDown}>
+                {cropImage.src && (
+                  <img
+                    src={cropImage.src}
+                    alt="Recorte"
+                    onLoad={handleCropImageLoad}
+                    style={{
+                      transform: `translate(calc(-50% + ${cropPosition.x}px), calc(-50% + ${cropPosition.y}px)) scale(${cropMetrics.baseScale * cropZoom})`,
+                    }}
+                  />
+                )}
+              </div>
+              <div className={styles.cropPreview}>
+                <span className={styles.previewLabel}>Vista previa marketplace</span>
+                <div className={styles.previewCard}>
+                  <div className={styles.previewImage}>
+                    {cropImage.src && (
+                      <img
+                        src={cropImage.src}
+                        alt="Preview"
+                        style={{
+                          transform: `translate(calc(-50% + ${cropPosition.x}px), calc(-50% + ${cropPosition.y}px)) scale(${cropMetrics.baseScale * cropZoom})`,
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className={styles.previewBody}>
+                    <strong>{form.title || 'Título del producto'}</strong>
+                    <span>${price || '0.00'} MXN</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className={styles.cropControls}>
+              <label>
+                Zoom
+                <input
+                  type="range"
+                  min="1"
+                  max="2.5"
+                  step="0.05"
+                  value={cropZoom}
+                  onChange={(event) => {
+                    const nextZoom = Number(event.target.value)
+                    setCropZoom(nextZoom)
+                    setCropPosition((prev) => clampCropPosition(prev))
+                  }}
+                />
+              </label>
+            </div>
+            <div className={styles.modalActions}>
+              <button className={styles.secondaryButton} type="button" onClick={handleCropCancel}>
+                Cancelar
+              </button>
+              <button className={styles.primaryButton} type="button" onClick={handleCropSave}>
+                Guardar recorte
+              </button>
+            </div>
           </div>
         </div>
       )}

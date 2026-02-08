@@ -49,7 +49,8 @@
 .mainImage img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
   transition: transform 0.25s ease;
   transform-origin: var(--zoom-x, 50%) var(--zoom-y, 50%);
 }

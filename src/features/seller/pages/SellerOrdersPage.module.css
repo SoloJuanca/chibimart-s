@@ -1,0 +1,93 @@
+.page {
+  padding: var(--space-32) 0 var(--space-64);
+  background: var(--color-surface);
+  min-height: 70vh;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-16);
+  margin-bottom: var(--space-24);
+}
+
+.headerRow h1 {
+  margin: 0 0 4px;
+}
+
+.headerRow p {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.primaryButton {
+  background: var(--color-accent);
+  border: none;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  color: #1f1f1f;
+  text-decoration: none;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
+.cardLink {
+  text-decoration: none;
+  color: inherit;
+}
+
+.cardLink:hover .card {
+  border-color: var(--color-accent);
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-24);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-16);
+}
+
+.meta {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.metaBlock {
+  text-align: right;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.metaBlock strong {
+  display: block;
+  color: var(--color-text);
+  margin-top: 4px;
+}
+
+.emptyState {
+  padding: var(--space-24);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  text-align: center;
+}
+
+@media (max-width: 720px) {
+  .headerRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

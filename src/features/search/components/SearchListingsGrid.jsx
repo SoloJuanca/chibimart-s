@@ -8,6 +8,22 @@ const formatPrice = (value) => {
   return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(numeric)
 }
 
+const resolvePriceLabel = (item) => {
+  const hasVariants = item?.basic?.hasVariants === 'yes'
+  const variantValues = Object.values(item?.pricing?.variantPrices || {})
+    .map((value) => Number(value))
+    .filter((value) => Number.isFinite(value) && value > 0)
+  if (hasVariants && variantValues.length) {
+    const minPrice = Math.min(...variantValues)
+    const maxPrice = Math.max(...variantValues)
+    if (minPrice === maxPrice) {
+      return formatPrice(minPrice)
+    }
+    return `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`
+  }
+  return formatPrice(item?.pricing?.price)
+}
+
 const getCoverImage = (item) => {
   if (item?.images?.photos?.length) return item.images.photos[0].url
   const variantEntries = Object.values(item?.images?.variantImages || {})
@@ -22,7 +38,7 @@ function SearchListingsGrid({ listings, favoriteIds = [], onToggleFavorite, show
         <SearchCard
           key={item.id}
           title={item.basic?.title || 'Sin título'}
-          price={formatPrice(item.pricing?.price)}
+          price={resolvePriceLabel(item)}
           seller={item.sellerName || item.userId || 'Vendedor'}
           imageUrl={getCoverImage(item)}
           to={`/product/${item.id}`}

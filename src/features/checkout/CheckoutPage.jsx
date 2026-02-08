@@ -1,14 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Elements } from '@stripe/react-stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
+import { toast } from 'react-hot-toast'
 import Container from '../../components/layout/Container'
 import Footer from '../../components/layout/Footer'
 import Header from '../../components/layout/Header'
 import { navCategories } from '../../data/categories'
+import { useAuth } from '../../context/AuthContext'
 import { useCart } from '../../context/CartContext'
 import AddressModal from './components/AddressModal'
 import StripePaymentForm from './components/StripePaymentForm'
 import { createPaymentIntent, createTransfers } from './services/stripeCheckoutService'
+import { createOrderDraft, updateOrderPayment } from '../orders/services/orderService'
 import styles from './CheckoutPage.module.css'
 
 const countryOptions = ['México', 'Estados Unidos', 'Colombia', 'España', 'Argentina', 'Chile', 'Perú']
@@ -40,11 +44,14 @@ const resolveShippingPrice = (shipping, country) => {
 }
 
 function CheckoutPage() {
-  const { items } = useCart()
+  const { auth } = useAuth()
+  const { items, clearCart } = useCart()
+  const navigate = useNavigate()
   const [addressModalOpen, setAddressModalOpen] = useState(false)
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [paymentIntentState, setPaymentIntentState] = useState({
     loading: false,
+    id: '',
     clientSecret: '',
     error: '',
   })
@@ -55,6 +62,14 @@ function CheckoutPage() {
     error: '',
     success: false,
   })
+  const [orderState, setOrderState] = useState({
+    loading: false,
+    error: '',
+    id: '',
+    status: '',
+  })
+  const [pendingOrderRedirect, setPendingOrderRedirect] = useState(false)
+  const returnCheckRef = useRef(false)
   const [address, setAddress] = useState({
     country: 'México',
     addressLine1: '',
@@ -64,9 +79,15 @@ function CheckoutPage() {
     receiver: '',
     instructions: '',
   })
+  const [checkoutItems, setCheckoutItems] = useState([])
+
+  useEffect(() => {
+    if (orderState.id) return
+    setCheckoutItems(items)
+  }, [items, orderState.id])
 
   const cartGroups = useMemo(() => {
-    return items.reduce((acc, item) => {
+    return checkoutItems.reduce((acc, item) => {
       const sellerKey = item.sellerId || item.sellerName || 'vendedor'
       if (!acc[sellerKey]) {
         acc[sellerKey] = {
@@ -76,19 +97,34 @@ function CheckoutPage() {
       }
       return acc
     }, {})
-  }, [items])
+  }, [checkoutItems])
 
   const productsTotal = useMemo(() => {
-    return items.reduce((total, item) => total + (item.price || 0) * (item.quantity || 1), 0)
-  }, [items])
+    return checkoutItems.reduce((total, item) => total + (item.price || 0) * (item.quantity || 1), 0)
+  }, [checkoutItems])
 
   const sellerIds = useMemo(() => {
-    const ids = items.map((item) => item.sellerId).filter(Boolean)
+    const ids = checkoutItems.map((item) => item.sellerId).filter(Boolean)
     return Array.from(new Set(ids))
-  }, [items])
+  }, [checkoutItems])
+
+  const sellerSummary = useMemo(() => {
+    return checkoutItems.reduce((acc, item) => {
+      const key = item.sellerId || item.sellerName || 'vendedor'
+      if (!acc[key]) {
+        acc[key] = {
+          sellerId: item.sellerId || '',
+          sellerName: item.sellerName || 'Vendedor',
+          subtotal: 0,
+        }
+      }
+      acc[key].subtotal += (item.price || 0) * (item.quantity || 1)
+      return acc
+    }, {})
+  }, [checkoutItems])
 
   const sellerBreakdown = useMemo(() => {
-    const groups = items.reduce((acc, item) => {
+    const groups = checkoutItems.reduce((acc, item) => {
       const key = item.sellerId || item.sellerName || 'vendedor'
       if (!acc[key]) {
         acc[key] = {
@@ -114,7 +150,7 @@ function CheckoutPage() {
         amountCents,
       }
     })
-  }, [items, address.country])
+  }, [checkoutItems, address.country])
 
   const shippingTotal = useMemo(() => {
     const values = Object.values(cartGroups).map((group) =>
@@ -133,15 +169,23 @@ function CheckoutPage() {
 
   const hasAddress =
     address.addressLine1 && address.zipCode && address.phone && address.receiver && address.country
-  const canPay = hasAddress && items.length > 0 && shippingTotal !== null
+  const canPay = hasAddress && checkoutItems.length > 0 && shippingTotal !== null
   const hasMultipleSellers = sellerIds.length > 1
   const hasMissingSellerId = sellerBreakdown.some((group) => !group.sellerId)
   const paymentTotal = shippingTotal === null ? 0 : productsTotal + shippingTotal
   const paymentTotalCents = Math.round(paymentTotal * 100)
-  const commissionRate = Number(import.meta.env.VITE_MARKETPLACE_COMMISSION) || 0
+  const commissionRate = Number(String(import.meta.env.VITE_MARKETPLACE_COMMISSION || '').replace(/[^0-9.]/g, '')) || 0
   const applicationFeeAmount =
     !hasMultipleSellers && commissionRate > 0 ? Math.round(paymentTotalCents * (commissionRate / 100)) : 0
+  const marketplaceFeeCents = hasMultipleSellers
+    ? sellerBreakdown.reduce(
+        (total, group) => total + Math.round(group.amountCents * (commissionRate / 100)),
+        0,
+      )
+    : applicationFeeAmount
   const canStartPayment = canPay && !hasMissingSellerId
+  const buyerId = auth?.id || ''
+  const buyerEmail = auth?.email || ''
 
   const handleAddressChange = (event) => {
     const { name, value } = event.target
@@ -158,6 +202,9 @@ function CheckoutPage() {
     setPaymentStatus('idle')
     setTransferGroup('')
     setTransferStatus({ loading: false, error: '', success: false })
+    setOrderState({ loading: false, error: '', id: '', status: '' })
+    returnCheckRef.current = false
+    setPendingOrderRedirect(false)
   }, [
     items,
     address.addressLine1,
@@ -198,26 +245,101 @@ function CheckoutPage() {
         applicationFeeAmount: hasMultipleSellers ? 0 : applicationFeeAmount,
         transferGroup: hasMultipleSellers ? nextTransferGroup : undefined,
         metadata: {
-          items: String(items.length),
+          items: String(checkoutItems.length),
           sellers: String(sellerIds.length),
         },
       })
       setPaymentIntentState({
         loading: false,
+        id: payload.id || '',
         clientSecret: payload.clientSecret,
         error: '',
       })
     } catch (error) {
       setPaymentIntentState({
         loading: false,
+        id: '',
         clientSecret: '',
         error: error?.message || 'No pudimos iniciar el pago.',
       })
     }
   }
 
+  useEffect(() => {
+    if (!paymentIntentState.clientSecret || orderState.loading || orderState.id) return
+    const createDraft = async () => {
+      setOrderState((prev) => ({ ...prev, loading: true, error: '' }))
+      try {
+        const order = await createOrderDraft({
+          buyerId,
+          buyerEmail,
+          paymentIntentId: paymentIntentState.id,
+          items: checkoutItems,
+          address,
+          totals: {
+            productsTotal,
+            shippingTotal,
+            grandTotal: paymentTotal,
+            marketplaceFee: Number(marketplaceFeeCents) / 100,
+          },
+          sellerIds,
+          sellerNames: Object.values(sellerSummary).reduce((acc, item) => {
+            acc[item.sellerId] = item.sellerName
+            return acc
+          }, {}),
+          status: 'PENDING_PAYMENT',
+        })
+        setOrderState({ loading: false, error: '', id: order.id, status: order.status })
+        localStorage.setItem('chibimart_order_id', order.id)
+      } catch (error) {
+        setOrderState({
+          loading: false,
+          error: error?.message || 'No pudimos crear el pedido.',
+          id: '',
+          status: '',
+        })
+      }
+    }
+    createDraft()
+  }, [
+    paymentIntentState.clientSecret,
+    orderState.loading,
+    orderState.id,
+    buyerId,
+    buyerEmail,
+    checkoutItems,
+    address,
+    productsTotal,
+    shippingTotal,
+    paymentTotal,
+    sellerIds,
+    sellerSummary,
+  ])
+
   const handlePaymentSuccess = async (paymentIntentId) => {
-    if (!hasMultipleSellers) return
+    if (orderState.id) {
+      try {
+        await updateOrderPayment({
+          orderId: orderState.id,
+          paymentIntentId,
+          status: 'PAID',
+          transferGroup,
+        })
+        setOrderState((prev) => ({ ...prev, status: 'PAID' }))
+      } catch (error) {
+        // ignore for now
+      }
+    }
+    localStorage.setItem(
+      'chibimart_checkout_success',
+      JSON.stringify({ at: Date.now(), orderId: orderState.id || '' }),
+    )
+    toast.success('Pago confirmado. ¡Gracias por tu compra!')
+    clearCart()
+    setPendingOrderRedirect(true)
+    if (!hasMultipleSellers) {
+      return
+    }
     if (!paymentIntentId || !transferGroup) return
     if (transferStatus.loading || transferStatus.success) return
     const transfers = sellerBreakdown
@@ -238,6 +360,11 @@ function CheckoutPage() {
         currency: 'mxn',
         transferGroup,
       })
+      localStorage.setItem(
+        'chibimart_checkout_success',
+        JSON.stringify({ at: Date.now(), orderId: orderState.id || '' }),
+      )
+      toast.success('Pago confirmado. ¡Gracias por tu compra!')
       setTransferStatus({ loading: false, error: '', success: true })
     } catch (error) {
       setTransferStatus({
@@ -245,6 +372,53 @@ function CheckoutPage() {
         error: error?.message || 'No pudimos transferir a los vendedores.',
         success: false,
       })
+    }
+  }
+
+  useEffect(() => {
+    if (returnCheckRef.current) return
+    if (!stripePromise) return
+    const params = new URLSearchParams(window.location.search)
+    const clientSecret = params.get('payment_intent_client_secret')
+    if (!clientSecret) return
+    returnCheckRef.current = true
+
+    stripePromise
+      .then((stripe) => {
+        if (!stripe) return null
+        return stripe.retrievePaymentIntent(clientSecret)
+      })
+      .then((result) => {
+        const status = result?.paymentIntent?.status
+        if (status !== 'succeeded') return
+        const storedOrderId = localStorage.getItem('chibimart_order_id')
+        if (storedOrderId) {
+          updateOrderPayment({
+            orderId: storedOrderId,
+            paymentIntentId: result?.paymentIntent?.id || '',
+            status: 'PAID',
+            transferGroup,
+          }).catch(() => {})
+        }
+        localStorage.setItem(
+          'chibimart_checkout_success',
+          JSON.stringify({ at: Date.now(), orderId: storedOrderId || '' }),
+        )
+        toast.success('Pago confirmado. ¡Gracias por tu compra!')
+        setPendingOrderRedirect(true)
+      })
+      .catch(() => {})
+  }, [stripePromise, transferGroup])
+
+  useEffect(() => {
+    if (!pendingOrderRedirect || !orderState.id) return
+    navigate(`/orders/${orderState.id}`)
+  }, [pendingOrderRedirect, orderState.id, navigate])
+
+  const handlePaymentComplete = (paymentIntent) => {
+    if (!paymentIntent) return
+    if (paymentIntent.status === 'requires_action' || paymentIntent.status === 'processing') {
+      setPendingOrderRedirect(true)
     }
   }
 
@@ -306,6 +480,7 @@ function CheckoutPage() {
                 {paymentIntentState.loading && (
                   <p className={styles.paymentMessage}>Preparando el pago seguro...</p>
                 )}
+                {orderState.error && <p className={styles.paymentError}>{orderState.error}</p>}
                 {paymentOpen && paymentIntentState.clientSecret && stripePromise && (
                   <div className={styles.paymentPanel}>
                     <Elements
@@ -321,8 +496,31 @@ function CheckoutPage() {
                         disabled={!canPay || paymentStatus === 'succeeded'}
                         onStatusChange={setPaymentStatus}
                         onPaymentSuccess={handlePaymentSuccess}
+                        onPaymentComplete={handlePaymentComplete}
                       />
                     </Elements>
+                  </div>
+                )}
+                {paymentOpen && orderState.id && (
+                  <div className={styles.orderPanel}>
+                    <div className={styles.orderSummary}>
+                      <div>
+                        <strong>Resumen de la orden</strong>
+                        <span>#{orderState.id.slice(0, 6)}</span>
+                      </div>
+                      <div className={styles.orderRow}>
+                        <span>Productos</span>
+                        <span>{formatCurrency(productsTotal)}</span>
+                      </div>
+                      <div className={styles.orderRow}>
+                        <span>Envío</span>
+                        <span>{shippingTotal === null ? '-' : formatCurrency(shippingTotal)}</span>
+                      </div>
+                      <div className={styles.orderRowTotal}>
+                        <span>Total</span>
+                        <strong>{formatCurrency(paymentTotal)}</strong>
+                      </div>
+                    </div>
                   </div>
                 )}
                 {transferStatus.loading && (
@@ -374,8 +572,8 @@ function CheckoutPage() {
               >
                 {paymentStatus === 'succeeded' ? 'Pago confirmado' : 'Realiza tu pedido y paga'}
               </button>
-              {!items.length && <p className={styles.helperText}>Tu carrito está vacío.</p>}
-              {items.length > 0 && shippingTotal === null && (
+              {!checkoutItems.length && <p className={styles.helperText}>Tu carrito está vacío.</p>}
+              {checkoutItems.length > 0 && shippingTotal === null && (
                 <p className={styles.helperText}>
                   {missingShippingCount > 1
                     ? `Hay ${missingShippingCount} vendedores que no envían a ${address.country}.`

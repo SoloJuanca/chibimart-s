@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js'
 import styles from './StripePaymentForm.module.css'
 
-function StripePaymentForm({ formId, disabled, onStatusChange, onPaymentSuccess }) {
+function StripePaymentForm({ formId, disabled, onStatusChange, onPaymentSuccess, onPaymentComplete }) {
   const stripe = useStripe()
   const elements = useElements()
   const [processing, setProcessing] = useState(false)
@@ -34,6 +34,22 @@ function StripePaymentForm({ formId, disabled, onStatusChange, onPaymentSuccess 
       setMessage('Pago confirmado. ¡Gracias por tu compra!')
       onStatusChange?.('succeeded')
       onPaymentSuccess?.(paymentIntent.id)
+      setProcessing(false)
+      return
+    }
+
+    if (paymentIntent?.status === 'requires_action') {
+      setMessage('Se generó el voucher de OXXO. Puedes pagar en tienda.')
+      onStatusChange?.('requires_action')
+      onPaymentComplete?.(paymentIntent)
+      setProcessing(false)
+      return
+    }
+
+    if (paymentIntent?.status === 'processing') {
+      setMessage('Pago en proceso. Te avisaremos cuando se confirme.')
+      onStatusChange?.('processing')
+      onPaymentComplete?.(paymentIntent)
       setProcessing(false)
       return
     }

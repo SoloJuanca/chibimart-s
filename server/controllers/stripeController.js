@@ -3,8 +3,37 @@ import { firestore } from '../firebase.js'
 import { collection, doc, getDoc, getDocs, limit, query, updateDoc, where } from 'firebase/firestore'
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY
+const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null
 const usersCollection = collection(firestore, 'users')
+const ordersCollection = collection(firestore, 'orders')
+
+const updateOrderFromPaymentIntent = async (paymentIntentId, status) => {
+  const snapshot = await getDocs(
+    query(ordersCollection, where('paymentIntentId', '==', paymentIntentId), limit(1)),
+  )
+  if (snapshot.empty) return null
+  const orderRef = snapshot.docs[0].ref
+  const updates = {
+    status,
+    updatedAt: new Date().toISOString(),
+  }
+
+  if (stripe) {
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+      expand: ['charges.data.balance_transaction'],
+    })
+    const charge = paymentIntent?.charges?.data?.[0]
+    const balanceTx = charge?.balance_transaction
+    if (balanceTx?.fee != null) {
+      updates['totals.stripeFee'] = Number(balanceTx.fee) / 100
+      updates['totals.stripeFeeCurrency'] = balanceTx.currency || 'mxn'
+    }
+  }
+
+  await updateDoc(orderRef, updates)
+  return snapshot.docs[0].id
+}
 
 const resolveUserDoc = async ({ userId, email }) => {
   if (userId) {
@@ -166,7 +195,7 @@ export const createPaymentIntent = async (req, res) => {
     const payload = {
       amount: Math.round(numericAmount),
       currency: (currency || 'mxn').toLowerCase(),
-      automatic_payment_methods: { enabled: true },
+      payment_method_types: ['card', 'oxxo'],
       metadata: metadata || {},
     }
 
@@ -272,4 +301,42 @@ export const createTransfersForGroup = async (req, res) => {
       error: error.message || 'Error desconocido',
     })
   }
+}
+
+export const handleStripeWebhook = async (req, res) => {
+  if (!stripe || !stripeWebhookSecret) {
+    return res.status(500).json({ message: 'Stripe webhook no configurado.' })
+  }
+  const signature = req.headers['stripe-signature']
+  let event
+  try {
+    event = stripe.webhooks.constructEvent(req.body, signature, stripeWebhookSecret)
+  } catch (error) {
+    return res.status(400).send(`Webhook Error: ${error.message}`)
+  }
+
+  const paymentIntent = event.data?.object
+  if (!paymentIntent?.id) {
+    return res.status(200).json({ received: true })
+  }
+
+  try {
+    switch (event.type) {
+      case 'payment_intent.processing':
+        await updateOrderFromPaymentIntent(paymentIntent.id, 'PROCESSING')
+        break
+      case 'payment_intent.succeeded':
+        await updateOrderFromPaymentIntent(paymentIntent.id, 'PAID')
+        break
+      case 'payment_intent.payment_failed':
+        await updateOrderFromPaymentIntent(paymentIntent.id, 'FAILED')
+        break
+      default:
+        break
+    }
+  } catch (error) {
+    return res.status(500).json({ message: 'Error al procesar webhook.' })
+  }
+
+  return res.status(200).json({ received: true })
 }

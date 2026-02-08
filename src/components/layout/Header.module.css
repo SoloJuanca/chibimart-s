@@ -91,6 +91,7 @@
   background: var(--color-surface);
   display: grid;
   place-items: center;
+  position: relative;
   cursor: pointer;
   transition: border 0.2s ease, transform 0.2s ease;
 }
@@ -98,6 +99,23 @@
 .iconButton:hover {
   border-color: var(--color-accent);
   transform: translateY(-1px);
+}
+
+.cartBadge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #f36f56;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  padding: 0 4px;
+  border: 2px solid var(--color-surface);
 }
 
 .menu {
@@ -127,6 +145,21 @@
   text-align: left;
   cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease;
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.menuDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f36f56;
+  flex-shrink: 0;
 }
 
 .menuItem:hover,
