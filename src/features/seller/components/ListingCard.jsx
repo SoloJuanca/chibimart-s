@@ -15,11 +15,8 @@ function ListingCard({ listing, stockValue, onStockChange, onStockSave, saving }
     .filter((value) => Number.isFinite(value) && value > 0)
   const hasVariantPrices = variantPrices.length > 0 && listing?.basic?.hasVariants === 'yes'
   const minVariantPrice = hasVariantPrices ? Math.min(...variantPrices) : null
-  const maxVariantPrice = hasVariantPrices ? Math.max(...variantPrices) : null
   const priceLabel = hasVariantPrices
-    ? minVariantPrice === maxVariantPrice
-      ? `${minVariantPrice.toFixed(2)}`
-      : `${minVariantPrice.toFixed(2)} - ${maxVariantPrice.toFixed(2)}`
+    ? minVariantPrice.toFixed(2)
     : listing.pricing?.price || '0.00'
 
   return (

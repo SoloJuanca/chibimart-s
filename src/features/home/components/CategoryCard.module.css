@@ -5,6 +5,14 @@
   padding: var(--space-12);
   display: grid;
   gap: var(--space-12);
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-md);
 }
 
 .media {

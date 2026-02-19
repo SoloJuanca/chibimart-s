@@ -1,6 +1,3 @@
-import SearchCard from './SearchCard'
-import styles from './SearchListingsGrid.module.css'
-
 const formatPrice = (value) => {
   if (value === null || value === undefined || value === '') return '$0.00 MXN'
   const numeric = Number(String(value).replace(/[^0-9.-]/g, ''))
@@ -27,24 +24,17 @@ const getCoverImage = (item) => {
   return firstVariant?.[0]?.url || ''
 }
 
-function SearchListingsGrid({ listings, favoriteIds = [], onToggleFavorite, showFavorite = true }) {
-  return (
-    <div className={styles.grid}>
-      {listings.map((item) => (
-        <SearchCard
-          key={item.id}
-          title={item.basic?.title || 'Sin título'}
-          price={resolvePriceLabel(item)}
-          seller={item.sellerName || item.userId || 'Vendedor'}
-          imageUrl={getCoverImage(item)}
-          to={`/product/${item.id}`}
-          isFavorite={favoriteIds.includes(item.id)}
-          onToggleFavorite={() => onToggleFavorite?.(item.id)}
-          showFavorite={showFavorite}
-        />
-      ))}
-    </div>
-  )
+export function listingToCardProps(listing) {
+  if (!listing || !listing.id) return null
+  return {
+    id: listing.id,
+    title: listing.basic?.title || 'Sin título',
+    price: resolvePriceLabel(listing),
+    seller: listing.sellerName || listing.userId || 'Vendedor',
+    imageUrl: getCoverImage(listing),
+    to: `/product/${listing.id}`,
+    featured: listing.basic?.featured === true,
+  }
 }
 
-export default SearchListingsGrid
+export { formatPrice, resolvePriceLabel, getCoverImage }

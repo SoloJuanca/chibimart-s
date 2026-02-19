@@ -31,14 +31,14 @@ function ProductSection({ title, subtitle, listings, layout = 'featured', isLoad
             <SearchCard {...featured} size="large" showFavorite={false} />
             <div className={styles.grid}>
               {remaining.map((item) => (
-                <SearchCard key={item.title} {...item} showFavorite={false} />
+                <SearchCard key={item.id || item.title} {...item} showFavorite={false} />
               ))}
             </div>
           </div>
         ) : (
           <div className={styles.grid}>
             {listings.map((item) => (
-              <SearchCard key={item.title} {...item} showFavorite={false} />
+              <SearchCard key={item.id || item.title} {...item} showFavorite={false} />
             ))}
           </div>
         )}

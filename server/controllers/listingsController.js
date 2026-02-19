@@ -46,6 +46,7 @@ const createEmptyListing = (userId) => {
       description: '',
       origin: '',
       isCreator: false,
+      featured: false,
       condition: '',
       stock: '',
       hasVariants: '',

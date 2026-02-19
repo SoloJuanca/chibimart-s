@@ -32,6 +32,15 @@
   gap: var(--space-16);
 }
 
+.state {
+  padding: var(--space-24);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  color: var(--color-muted);
+  text-align: center;
+  font-size: 14px;
+}
+
 .featured {
   border-radius: var(--radius-lg);
   min-height: 220px;

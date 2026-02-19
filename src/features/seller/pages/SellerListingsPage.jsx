@@ -27,6 +27,7 @@ function SellerListingsPage() {
     description: '',
     origin: '',
     isCreator: false,
+    featured: false,
     condition: '',
     stock: '',
     hasVariants: '',
@@ -605,6 +606,7 @@ function SellerListingsPage() {
           description: form.description,
           origin: form.origin,
           isCreator: form.isCreator,
+          featured: form.featured,
           condition: form.condition,
           stock: form.stock,
           hasVariants: form.hasVariants,
@@ -786,6 +788,18 @@ function SellerListingsPage() {
                   </div>
                 )}
 
+                <div className={styles.field}>
+                  <label className={styles.checkboxRow}>
+                    <input
+                      type="checkbox"
+                      name="featured"
+                      checked={form.featured}
+                      onChange={handleChange}
+                    />
+                    <span>Destacar en inicio (categoría Coleccionistas)</span>
+                  </label>
+                </div>
+
                 {canShowCondition && (
                   <div className={styles.field}>
                     <span className={styles.legend}>¿En qué estado está?</span>
@@ -839,7 +853,6 @@ function SellerListingsPage() {
                   </div>
                   {errors.hasVariants && <span className={styles.error}>{errors.hasVariants}</span>}
                 </div>
-                {console.log(form)}
                 {form.hasVariants !== "" && form.hasVariants !== 'yes' && (
                   <div className={styles.field}>
                     <label htmlFor="stock">Cantidad de artículos</label>

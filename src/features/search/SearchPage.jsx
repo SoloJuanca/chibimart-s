@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import Container from '../../components/layout/Container'
 import Header from '../../components/layout/Header'
 import Footer from '../../components/layout/Footer'
@@ -13,11 +14,15 @@ import styles from './SearchPage.module.css'
 const tabs = ['Ver todo', 'Accesorios', 'TCG', 'Figuras y peluches', 'Juegos de mesa', 'Videojuegos', 'Ropa']
 
 function SearchPage() {
+  const [searchParams] = useSearchParams()
+  const categoryFromUrl = searchParams.get('category')
+  const initialTab = categoryFromUrl && tabs.includes(categoryFromUrl) ? categoryFromUrl : 'Ver todo'
   const { auth } = useAuth()
   const userId = auth?.id || auth?.email || ''
-  const [activeTab, setActiveTab] = useState('Ver todo')
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [listings, setListings] = useState([])
+  const mainRef = useRef(null)
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
   const [favoriteIds, setFavoriteIds] = useState([])
@@ -43,6 +48,20 @@ function SearchPage() {
     return () => {
       isMounted = false
     }
+  }, [])
+
+  useEffect(() => {
+    const category = searchParams.get('category')
+    if (category && tabs.includes(category)) {
+      setActiveTab(category)
+    } else if (!category) {
+      setActiveTab('Ver todo')
+    }
+  }, [searchParams])
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    mainRef.current?.focus({ preventScroll: true })
   }, [])
 
   useEffect(() => {
@@ -87,10 +106,25 @@ function SearchPage() {
 
   const totalCount = useMemo(() => listings.length, [listings])
 
+  const categoryFilterButton = (
+    <button
+      type="button"
+      className={styles.headerCategoryButton}
+      onClick={() => setFiltersOpen(true)}
+    >
+      Filtros
+    </button>
+  )
+
   return (
     <>
-      <Header categories={navCategories} />
-      <main className={styles.page}>
+      <Header categories={navCategories} categoryFilterSlot={categoryFilterButton} />
+      <main
+        ref={mainRef}
+        className={styles.page}
+        tabIndex={-1}
+        aria-label="Resultados de búsqueda"
+      >
         <Container>
           <div className={styles.breadcrumb}>Inicio / Todo</div>
           <div className={styles.tabs}>
@@ -104,11 +138,6 @@ function SearchPage() {
                 {tab}
               </button>
             ))}
-          </div>
-          <div className={styles.mobileActions}>
-            <button type="button" className={styles.primaryFilterButton} onClick={() => setFiltersOpen(true)}>
-              Categoría
-            </button>
           </div>
           <div className={styles.layout}>
             <aside className={styles.sidebar}>

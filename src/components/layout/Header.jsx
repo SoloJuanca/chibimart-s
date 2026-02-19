@@ -5,14 +5,18 @@ import styles from './Header.module.css'
 import { useAuth } from '../../context/AuthContext'
 import { useCart } from '../../context/CartContext'
 
-function Header({ categories }) {
+function Header({ categories, categoryFilterSlot }) {
   const { auth, setAuth } = useAuth()
   const { items } = useCart()
   const navigate = useNavigate()
   const location = useLocation()
+  const isHome = location.pathname === '/'
   const [menuOpen, setMenuOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [categoryNavCompact, setCategoryNavCompact] = useState(false)
   const menuButtonRef = useRef(null)
   const menuRef = useRef(null)
+  const lastScrollY = useRef(0)
   const hasSellerApproved = auth?.roles?.includes('SELLER')
   const hasSellerRole = hasSellerApproved || auth?.roles?.includes('SELLER_PENDING')
   const sellLink = hasSellerApproved ? '/seller/listings' : hasSellerRole ? '/seller/apply' : '/seller'
@@ -170,28 +174,68 @@ function Header({ categories }) {
     }
   }, [menuOpen])
 
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setMobileMenuOpen(false)
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [mobileMenuOpen])
+
+  useEffect(() => {
+    if (!isHome) return
+    setCategoryNavCompact(false)
+    lastScrollY.current = window.scrollY || document.documentElement.scrollTop
+    const thresholdCompact = 120
+    const thresholdExpand = 80
+    const handleScroll = () => {
+      const y = window.scrollY || document.documentElement.scrollTop
+      if (y > thresholdCompact) {
+        setCategoryNavCompact(true)
+      } else if (y <= thresholdExpand) {
+        setCategoryNavCompact(false)
+      }
+      lastScrollY.current = y
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [isHome])
+
   const handleLogout = () => {
     setAuth(null)
     setMenuOpen(false)
+    setMobileMenuOpen(false)
     navigate('/')
   }
+
+  const closeMobileMenu = () => setMobileMenuOpen(false)
 
   return (
     <header className={styles.header}>
       <Container>
         <div className={styles.topRow}>
-          <Link className={styles.logoWrap} to="/">
+          <Link className={styles.logoWrap} to="/" onClick={closeMobileMenu}>
             <img src="/images/LOGO.png" alt="Chibimart" className={styles.logo} />
           </Link>
-          <label className={styles.search} htmlFor="search-input">
-            <span className="sr-only">Buscar productos</span>
-            <input
-              id="search-input"
-              type="search"
-              placeholder="¿Qué estás buscando?"
-              className={styles.searchInput}
-            />
-          </label>
+          <div className={styles.searchRow}>
+            <label className={styles.search} htmlFor="search-input">
+              <span className="sr-only">Buscar productos</span>
+              <input
+                id="search-input"
+                type="search"
+                placeholder="¿Qué estás buscando?"
+                className={styles.searchInput}
+              />
+            </label>
+            <div className={styles.slotAfterSearch}>
+              {categoryFilterSlot || (
+                <Link to="/search" className={styles.filterLink}>
+                  Filtrar
+                </Link>
+              )}
+            </div>
+          </div>
           <div className={styles.actions}>
             <Link className={styles.sellButton} to={sellLink}>
               {sellLabel}
@@ -311,22 +355,95 @@ function Header({ categories }) {
               </Link>
             )}
           </div>
+          <button
+            type="button"
+            className={styles.hamburger}
+            aria-label="Menú"
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen((prev) => !prev)}
+          >
+            <span className={styles.hamburgerLine} />
+            <span className={styles.hamburgerLine} />
+            <span className={styles.hamburgerLine} />
+          </button>
         </div>
       </Container>
-      <nav className={styles.categoryNav} aria-label="Categorías principales">
-        <Container>
-          <ul className={styles.categoryList}>
-            {categories.map((category) => (
-              <li key={category.label}>
-                <Link className={styles.categoryItem} to="/search">
-                  <img src={category.icon} alt="" className={styles.categoryIcon} />
-                  <span>{category.label}</span>
+      {mobileMenuOpen && (
+        <div className={styles.mobileDrawer} role="dialog" aria-modal="true" aria-label="Menú completo">
+          <div className={styles.mobileDrawerContent}>
+            <Link className={styles.mobileLink} to={sellLink} onClick={closeMobileMenu}>
+              {sellLabel}
+            </Link>
+            {!auth?.email && (
+              <Link className={styles.mobileLink} to="/login" onClick={closeMobileMenu}>
+                Iniciar sesión
+              </Link>
+            )}
+            <Link className={styles.mobileLink} to="/favorites" onClick={closeMobileMenu}>
+              Favoritos
+            </Link>
+            <Link className={styles.mobileLink} to="/cart" onClick={closeMobileMenu}>
+              Carrito {cartCount > 0 && `(${cartCount})`}
+            </Link>
+            {auth?.email ? (
+              <>
+                <Link className={styles.mobileLink} to="/welcome" onClick={closeMobileMenu}>
+                  Perfil
                 </Link>
-              </li>
-            ))}
-          </ul>
-        </Container>
-      </nav>
+                <Link className={styles.mobileLink} to="/orders" onClick={closeMobileMenu}>
+                  Mis pedidos
+                </Link>
+                {hasSellerRole && (
+                  <Link className={styles.mobileLink} to="/seller/apply" onClick={closeMobileMenu}>
+                    Perfil de vendedor
+                  </Link>
+                )}
+                {hasSellerApproved && (
+                  <>
+                    <Link className={styles.mobileLink} to="/seller/products" onClick={closeMobileMenu}>
+                      Mis productos
+                    </Link>
+                    <Link className={styles.mobileLink} to="/seller/orders" onClick={closeMobileMenu}>
+                      Pedidos recibidos
+                    </Link>
+                  </>
+                )}
+                {auth?.isAdmin && (
+                  <Link className={styles.mobileLink} to="/admin/sellers" onClick={closeMobileMenu}>
+                    Panel de administrador
+                  </Link>
+                )}
+                <button type="button" className={styles.mobileLinkButton} onClick={handleLogout}>
+                  Cerrar sesión
+                </button>
+              </>
+            ) : (
+              <Link className={styles.mobileLink} to="/login" onClick={closeMobileMenu}>
+                Mi cuenta
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+      {isHome && (
+        <nav
+          className={`${styles.categoryNav} ${categoryNavCompact ? styles.categoryNavCompact : ''}`}
+          aria-label="Categorías principales"
+        >
+          <Container>
+            <ul className={styles.categoryList}>
+              {categories.map((category) => (
+                <li key={category.label}>
+                  <Link className={styles.categoryItem} to="/search">
+                    <img src={category.icon} alt="" className={styles.categoryIcon} aria-hidden={categoryNavCompact} />
+                    <span>{category.label}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Container>
+        </nav>
+      )}
     </header>
   )
 }

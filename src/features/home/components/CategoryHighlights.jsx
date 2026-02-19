@@ -11,7 +11,11 @@ function CategoryHighlights({ categories }) {
         </div>
         <div className={styles.cards}>
           {categories.map((category) => (
-            <CategoryCard key={category.title} title={category.title} />
+            <CategoryCard
+              key={category.title}
+              title={category.title}
+              to={`/search?category=${encodeURIComponent(category.title)}`}
+            />
           ))}
         </div>
       </Container>

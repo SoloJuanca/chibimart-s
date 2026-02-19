@@ -10,8 +10,43 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-24);
+  gap: var(--space-16);
   padding: var(--space-16) 0;
+  flex-wrap: nowrap;
+}
+
+.slotAfterSearch {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* En desktop ocultar el slot cuando solo es el enlace "Filtrar" (otras páginas) */
+@media (min-width: 769px) {
+  .slotAfterSearch:has(.filterLink) {
+    display: none;
+  }
+
+  .slotAfterSearch {
+    display: none;
+  }
+}
+
+.filterLink {
+  font-weight: 600;
+  color: var(--color-text);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: #1b1b1b;
+  text-decoration: none;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.filterLink:hover,
+.filterLink:focus-visible {
+  opacity: 0.9;
 }
 
 .logoWrap {
@@ -25,9 +60,18 @@
   width: auto;
 }
 
+.searchRow {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-width: 0;
+}
+
 .search {
   flex: 1;
   display: flex;
+  min-width: 0;
 }
 
 .searchInput {
@@ -174,9 +218,91 @@
   font-weight: 600;
 }
 
+/* Hamburger: solo visible en móvil */
+.hamburger {
+  display: none;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+
+.hamburger:hover,
+.hamburger:focus-visible {
+  border-color: var(--color-accent);
+}
+
+.hamburgerLine {
+  width: 18px;
+  height: 2px;
+  background: var(--color-text);
+  border-radius: 1px;
+}
+
+/* Drawer móvil */
+.mobileDrawer {
+  position: fixed;
+  inset: 0;
+  top: 70px;
+  z-index: 15;
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  overflow-y: auto;
+}
+
+.mobileDrawerContent {
+  padding: var(--space-24);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.mobileLink,
+.mobileLinkButton {
+  padding: 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text);
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  cursor: pointer;
+  text-decoration: none;
+  display: block;
+}
+
+.mobileLink:hover,
+.mobileLink:focus-visible,
+.mobileLinkButton:hover,
+.mobileLinkButton:focus-visible {
+  color: var(--color-accent);
+}
+
 .categoryNav {
   border-top: 1px solid var(--color-border);
   background: var(--color-surface);
+  transition: padding 0.2s ease;
+}
+
+/* Solo texto: ocultar iconos al hacer scroll (después de 120px) */
+.categoryNavCompact .categoryIcon {
+  display: none;
+}
+
+.categoryNavCompact .categoryItem {
+  gap: 0;
+}
+
+.categoryNavCompact .categoryList {
+  padding: var(--space-8) 0;
 }
 
 .categoryList {
@@ -187,6 +313,7 @@
   padding: var(--space-12) 0;
   gap: var(--space-12);
 }
+
 
 .categoryItem {
   width: 100%;
@@ -213,17 +340,78 @@
 }
 
 @media (max-width: 960px) {
-  .topRow {
-    flex-wrap: wrap;
-  }
-
-  .search {
-    order: 3;
-    flex-basis: 100%;
-  }
-
   .categoryList {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* Móvil: fila 1 = Logo | Favoritos | Carrito | Menú; fila 2 = Buscador 75% | Filtros 25%; fila 3 = Categorías scroll horizontal */
+@media (max-width: 768px) {
+  .topRow {
+    flex-wrap: wrap;
+    gap: var(--space-12);
+    align-items: center;
+  }
+
+  .logoWrap {
+    order: 1;
+    min-width: auto;
+  }
+
+  .actions {
+    order: 2;
+    display: flex;
+    margin-left: auto;
+  }
+
+  .sellButton,
+  .authLink,
+  .menuWrap {
+    display: none !important;
+  }
+
+  .hamburger {
+    order: 3;
+    display: flex;
+  }
+
+  .searchRow {
+    order: 4;
+    flex-basis: 100%;
+    width: 100%;
+    display: flex;
+    gap: var(--space-12);
+  }
+
+  .searchRow .search {
+    flex: 0 0 calc(75% - var(--space-16));
+    min-width: 0;
+  }
+
+  .searchRow .slotAfterSearch {
+    flex: 0 0 calc(25% - var(--space-16));
+    min-width: 0;
+  }
+
+  .categoryNav .categoryList {
+    display: flex;
+    flex-wrap: nowrap;
+    grid-template-columns: none;
+    gap: var(--space-16);
+    padding: var(--space-12) var(--space-16);
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .categoryNav .categoryList::-webkit-scrollbar {
+    display: none;
+  }
+
+  .categoryNav .categoryItem {
+    flex-shrink: 0;
   }
 }
 
@@ -232,11 +420,19 @@
     gap: var(--space-8);
   }
 
-  .sellButton {
-    display: none;
-  }
-
   .categoryList {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Tablet: si no cabe todo, search + slot bajan juntos en una fila */
+@media (min-width: 769px) and (max-width: 960px) {
+  .topRow {
+    flex-wrap: wrap;
+  }
+
+  .searchRow {
+    order: 3;
+    flex-basis: 100%;
   }
 }
