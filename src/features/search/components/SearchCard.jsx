@@ -19,7 +19,17 @@ function SearchCard({
 
   const CardContent = (
     <>
-      <div className={styles.image} style={imageUrl ? { backgroundImage: `url(${imageUrl})` } : undefined} />
+      <div className={styles.image}>
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt=""
+            className={styles.imageImg}
+            loading="lazy"
+            decoding="async"
+          />
+        ) : null}
+      </div>
       {!isSkeleton && (
         <div className={styles.body}>
           <p className={styles.title}>{title}</p>

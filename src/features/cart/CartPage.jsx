@@ -37,8 +37,9 @@ function CartPage() {
   }, {})
   const sectionList = Object.values(sections).map((section) => ({
     ...section,
-    subtotal: section.items.reduce((total, item) => total + item.price * item.quantity, 0),
+    subtotal: section.items.reduce((total, item) => total + (item.price || 0) * (item.quantity || 1), 0),
   }))
+  const productsTotal = sectionList.reduce((sum, section) => sum + section.subtotal, 0)
 
   return (
     <>
@@ -54,19 +55,36 @@ function CartPage() {
             <div className={styles.stateMessage}>Tu carrito está vacío por ahora.</div>
           )}
           {!isLoading && !errorMessage && sectionList.length > 0 && (
-            <div className={styles.sectionList}>
-              {sectionList.map((section) => (
-                <SellerCartSection
-                  key={section.id}
-                  sellerLabel={section.sellerLabel}
-                  sellerName={section.sellerName}
-                  items={section.items}
-                  subtotal={section.subtotal}
-                  formatCurrency={formatCurrency}
-                  onRemoveItem={removeItem}
-                />
-              ))}
-            </div>
+            <>
+              <div className={styles.sectionList}>
+                {sectionList.map((section) => (
+                  <SellerCartSection
+                    key={section.id}
+                    sellerLabel={section.sellerLabel}
+                    sellerName={section.sellerName}
+                    items={section.items}
+                    subtotal={section.subtotal}
+                    formatCurrency={formatCurrency}
+                    onRemoveItem={removeItem}
+                  />
+                ))}
+              </div>
+              <div className={styles.cartSummary} role="region" aria-label="Resumen del carrito">
+                <h2 className={styles.cartSummaryTitle}>Resumen del carrito</h2>
+                <div className={styles.cartSummaryRow}>
+                  <span>Productos</span>
+                  <span>{formatCurrency(productsTotal, { withDecimals: true })}</span>
+                </div>
+                <div className={styles.cartSummaryRow}>
+                  <span>Envío</span>
+                  <span className={styles.cartSummaryLegend}>Se calculará en el checkout según tu dirección</span>
+                </div>
+                <div className={styles.cartSummaryTotal}>
+                  <span>Total (productos)</span>
+                  <strong>{formatCurrency(productsTotal, { withDecimals: true })}</strong>
+                </div>
+              </div>
+            </>
           )}
         </Container>
       </main>

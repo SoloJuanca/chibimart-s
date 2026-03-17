@@ -23,28 +23,53 @@
   gap: var(--space-16);
 }
 
+.breakdown {
+  margin-top: var(--space-24);
+  padding-top: var(--space-16);
+  border-top: 1px solid var(--color-border);
+  display: grid;
+  gap: var(--space-8);
+  font-size: 13px;
+}
+
+.breakdownRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--color-muted);
+}
+
+.breakdownRow span:last-child {
+  color: var(--color-text);
+}
+
+.breakdownLegend {
+  font-size: 12px;
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.breakdownTotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--space-8);
+  padding-top: var(--space-8);
+  border-top: 1px solid var(--color-border);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.breakdownTotal strong {
+  font-size: 16px;
+}
+
 .summary {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: var(--space-24);
-  margin-top: var(--space-24);
-}
-
-.summaryPrice {
-  text-align: right;
-}
-
-.summaryValue {
-  display: block;
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--color-text);
-}
-
-.summaryLabel {
-  font-size: 12px;
-  color: var(--color-muted);
+  margin-top: var(--space-16);
 }
 
 .checkoutButton {

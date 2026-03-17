@@ -13,11 +13,21 @@ function SellerCartSection({ sellerLabel, sellerName, items, subtotal, formatCur
           <CartItem key={item.key || item.id} item={item} formatCurrency={formatCurrency} onRemove={onRemoveItem} />
         ))}
       </div>
-      <div className={styles.summary}>
-        <div className={styles.summaryPrice}>
-          <span className={styles.summaryValue}>{formatCurrency(subtotal, { withDecimals: true })}</span>
-          <span className={styles.summaryLabel}>Subtotal</span>
+      <div className={styles.breakdown}>
+        <div className={styles.breakdownRow}>
+          <span>Subtotal productos</span>
+          <span>{formatCurrency(subtotal, { withDecimals: true })}</span>
         </div>
+        <div className={styles.breakdownRow}>
+          <span>Envío</span>
+          <span className={styles.breakdownLegend}>Se calculará en el checkout según tu dirección</span>
+        </div>
+        <div className={styles.breakdownTotal}>
+          <span>Total (productos)</span>
+          <strong>{formatCurrency(subtotal, { withDecimals: true })}</strong>
+        </div>
+      </div>
+      <div className={styles.summary}>
         <Link className={styles.checkoutButton} to="/checkout">
           Proceder al pago
         </Link>

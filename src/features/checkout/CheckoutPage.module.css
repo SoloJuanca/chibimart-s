@@ -156,6 +156,69 @@
   font-size: 16px;
 }
 
+.sellerBlock {
+  margin-bottom: var(--space-20);
+  padding-bottom: var(--space-16);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sellerBlock:last-of-type {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.sellerBlockName {
+  margin: 0 0 var(--space-8);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.sellerItemList {
+  margin: 0 0 var(--space-12);
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.sellerItemLine {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-8);
+  margin-bottom: var(--space-4);
+}
+
+.sellerItemTitle {
+  min-width: 0;
+  flex: 1;
+}
+
+.sellerBlockRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--color-muted);
+  margin-bottom: var(--space-4);
+}
+
+.sellerBlockTotal {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: var(--space-8);
+  padding-top: var(--space-8);
+  border-top: 1px solid var(--color-border);
+}
+
+.summaryDivider {
+  height: 1px;
+  background: var(--color-border);
+  margin: var(--space-16) 0;
+}
+
 .summaryRow {
   display: flex;
   justify-content: space-between;

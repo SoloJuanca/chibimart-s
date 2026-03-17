@@ -2,7 +2,16 @@ import Container from '../../../components/layout/Container'
 import SearchCard from '../../search/components/SearchCard'
 import styles from './CreativeShowcase.module.css'
 
-function CreativeShowcase({ title, subtitle, listings, isLoading = false, isError = false }) {
+function CreativeShowcase({
+  title,
+  subtitle,
+  listings,
+  isLoading = false,
+  isError = false,
+  favoriteIds = [],
+  onToggleFavorite,
+  showFavorite = false,
+}) {
   return (
     <section className={styles.section}>
       <Container className={styles.layout}>
@@ -16,7 +25,7 @@ function CreativeShowcase({ title, subtitle, listings, isLoading = false, isErro
           ) : isLoading ? (
             <div className={styles.cards}>
               {Array.from({ length: 3 }).map((_, index) => (
-                <SearchCard key={index} isSkeleton showFavorite={false} />
+                <SearchCard key={index} isSkeleton showFavorite={showFavorite} />
               ))}
             </div>
           ) : listings.length === 0 ? (
@@ -24,7 +33,13 @@ function CreativeShowcase({ title, subtitle, listings, isLoading = false, isErro
           ) : (
             <div className={styles.cards}>
               {listings.map((item) => (
-                <SearchCard key={item.id || item.title} {...item} showFavorite={false} />
+                <SearchCard
+                  key={item.id || item.title}
+                  {...item}
+                  showFavorite={showFavorite}
+                  isFavorite={favoriteIds.includes(item.id)}
+                  onToggleFavorite={() => onToggleFavorite?.(item.id)}
+                />
               ))}
             </div>
           )}

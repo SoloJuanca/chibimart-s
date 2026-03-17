@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'react-hot-toast'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import Container from '../../components/layout/Container'
 import Header from '../../components/layout/Header'
 import Footer from '../../components/layout/Footer'
@@ -8,6 +8,7 @@ import { navCategories } from '../../data/categories'
 import { useAuth } from '../../context/AuthContext'
 import { useCart } from '../../context/CartContext'
 import SearchListingsGrid from '../search/components/SearchListingsGrid'
+import { listFavoritesByUser, toggleFavorite } from '../search/services/favoriteService'
 import {
   answerListingQuestion,
   askListingQuestion,
@@ -38,6 +39,7 @@ const getGalleryImages = (listing) => {
 
 function ProductPage() {
   const { listingId } = useParams()
+  const navigate = useNavigate()
   const { auth } = useAuth()
   const { addItem } = useCart()
   const userId = auth?.id || auth?.email || ''
@@ -53,6 +55,8 @@ function ProductPage() {
   const [reviews, setReviews] = useState([])
   const [zoomOrigin, setZoomOrigin] = useState({ x: '50%', y: '50%' })
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0)
+  const [quantity, setQuantity] = useState(1)
+  const [favoriteIds, setFavoriteIds] = useState([])
 
   useEffect(() => {
     if (!listingId) return
@@ -150,6 +154,43 @@ function ProductPage() {
     }
   }, [listing?.userId])
 
+  useEffect(() => {
+    if (!userId) {
+      setFavoriteIds([])
+      return
+    }
+    let isMounted = true
+    listFavoritesByUser(userId)
+      .then((data) => {
+        if (!isMounted) return
+        const ids = Array.isArray(data) ? data.map((item) => item.id) : []
+        setFavoriteIds(ids)
+      })
+      .catch(() => {
+        if (isMounted) setFavoriteIds([])
+      })
+    return () => {
+      isMounted = false
+    }
+  }, [userId])
+
+  const handleToggleFavorite = async (listingId) => {
+    if (!listingId || !userId) return
+    const previous = [...favoriteIds]
+    setFavoriteIds((prev) =>
+      prev.includes(listingId) ? prev.filter((id) => id !== listingId) : [...prev, listingId],
+    )
+    try {
+      const result = await toggleFavorite({ userId, listingId })
+      setFavoriteIds((prev) => {
+        if (result.favorite) return prev.includes(listingId) ? prev : [...prev, listingId]
+        return prev.filter((id) => id !== listingId)
+      })
+    } catch {
+      setFavoriteIds(previous)
+    }
+  }
+
   const galleryImages = useMemo(() => getGalleryImages(listing), [listing])
   const isSeller = listing?.userId && auth?.id === listing.userId
   const variants = listing?.variants || []
@@ -165,6 +206,19 @@ function ProductPage() {
       ? variantPrice
       : listing?.pricing?.price
   const selectedVariant = variantOptions.find((item) => item.index === selectedVariantIndex)?.option
+  const displayStock = hasVariants
+    ? listing?.pricing?.variantStocks?.[variantKey]
+    : listing?.basic?.stock
+  const stockNum =
+    displayStock !== undefined && displayStock !== null && displayStock !== ''
+      ? Number(String(displayStock).replace(/[^0-9.-]/g, ''))
+      : null
+  const hasStock = stockNum !== null && Number.isFinite(stockNum) && stockNum > 0
+  const maxQuantity = stockNum !== null && Number.isFinite(stockNum) ? Math.max(1, Math.floor(stockNum)) : 99
+
+  useEffect(() => {
+    setQuantity((prev) => Math.min(Math.max(1, prev), maxQuantity))
+  }, [maxQuantity])
 
   const parsePrice = (value) => {
     if (value === null || value === undefined || value === '') return 0
@@ -172,6 +226,9 @@ function ProductPage() {
     const numeric = Number(String(value).replace(/[^0-9.-]/g, ''))
     return Number.isFinite(numeric) ? numeric : 0
   }
+
+  const unitPrice = parsePrice(displayPrice)
+  const subtotal = unitPrice * quantity
 
   const buildCartDescription = (text) => {
     if (!text) return ''
@@ -254,7 +311,8 @@ function ProductPage() {
       id: listingId,
       title: listing.basic?.title || 'Producto',
       condition: listing.basic?.condition || 'Nuevo',
-      quantity: 1,
+      quantity: Math.min(quantity, maxQuantity),
+      maxQuantity,
       description: buildCartDescription(listing.basic?.description),
       size: listing.basic?.size || '',
       price: parsePrice(displayPrice),
@@ -268,6 +326,36 @@ function ProductPage() {
     }
     addItem(cartItem)
     toast.success('Producto agregado al carrito.')
+  }
+
+  const handleBuyNow = () => {
+    if (!listing) return
+    const variantKey = hasVariants ? `0-${selectedVariantIndex}` : 'default'
+    const cartItem = {
+      key: `${listingId}-${variantKey}`,
+      id: listingId,
+      title: listing.basic?.title || 'Producto',
+      condition: listing.basic?.condition || 'Nuevo',
+      quantity: Math.min(quantity, maxQuantity),
+      maxQuantity,
+      description: buildCartDescription(listing.basic?.description),
+      size: listing.basic?.size || '',
+      price: parsePrice(displayPrice),
+      image: activeImage || galleryImages[0] || '/images/cart-placeholder.svg',
+      imageAlt: listing.basic?.title || 'Producto',
+      sellerId: listing.userId || '',
+      sellerName: listing.sellerName || listing.seller?.name || 'Vendedor',
+      sellerLabel: 'Productos vendidos por',
+      variantLabel: selectedVariant || '',
+      shipping: listing.shipping || null,
+    }
+    addItem(cartItem)
+    const sellerId = listing.userId || ''
+    if (sellerId) {
+      navigate(`/checkout?sellerId=${encodeURIComponent(sellerId)}`)
+    } else {
+      navigate('/checkout')
+    }
   }
 
   return (
@@ -366,7 +454,11 @@ function ProductPage() {
                     {sellerProducts.length === 0 ? (
                       <div className={styles.state}>No hay más productos disponibles.</div>
                     ) : (
-                      <SearchListingsGrid listings={sellerProducts} showFavorite={false} />
+                      <SearchListingsGrid
+                      listings={sellerProducts}
+                      favoriteIds={favoriteIds}
+                      onToggleFavorite={handleToggleFavorite}
+                    />
                     )}
                   </section>
 
@@ -394,7 +486,11 @@ function ProductPage() {
                     {relatedProducts.length === 0 ? (
                       <div className={styles.state}>No hay productos relacionados.</div>
                     ) : (
-                      <SearchListingsGrid listings={relatedProducts} showFavorite={false} />
+                      <SearchListingsGrid
+                      listings={relatedProducts}
+                      favoriteIds={favoriteIds}
+                      onToggleFavorite={handleToggleFavorite}
+                    />
                     )}
                   </section>
                 </div>
@@ -422,11 +518,73 @@ function ProductPage() {
                     )}
                     <div className={styles.infoRow}>
                       <span>Stock</span>
-                      <strong>{listing.basic?.stock || 'Disponible'}</strong>
+                      <strong
+                        className={hasStock ? styles.stockInStock : ''}
+                        aria-label={hasStock ? 'En stock' : 'Sin stock'}
+                      >
+                        {displayStock !== undefined && displayStock !== null && displayStock !== ''
+                          ? String(displayStock)
+                          : hasStock
+                            ? 'Disponible'
+                            : 'Sin stock'}
+                      </strong>
                     </div>
-                    <button className={styles.primaryButton} type="button" onClick={handleAddToCart}>
-                      Agregar al carrito
-                    </button>
+                    <div className={styles.infoRow}>
+                      <span>Envío</span>
+                      <span className={styles.breakdownLegend}>
+                        Se calculará en el checkout según tu dirección
+                      </span>
+                    </div>
+                    {hasStock && maxQuantity > 1 && (
+                      <div className={styles.quantityRow}>
+                        <label htmlFor="product-quantity">Cantidad</label>
+                        <input
+                          id="product-quantity"
+                          type="number"
+                          min={1}
+                          max={maxQuantity}
+                          value={quantity}
+                          onChange={(e) => {
+                            const v = Number(e.target.value)
+                            if (!Number.isFinite(v)) return
+                            setQuantity(Math.min(maxQuantity, Math.max(1, Math.floor(v))))
+                          }}
+                          className={styles.quantityInput}
+                          aria-label="Cantidad"
+                        />
+                      </div>
+                    )}
+                    <div className={styles.breakdown} role="region" aria-label="Desglose del precio">
+                      <div className={styles.breakdownRow}>
+                        <span>
+                          {quantity > 1 ? `Subtotal (${quantity} × ${formatPrice(unitPrice)})` : 'Precio'}
+                        </span>
+                        <strong>{formatPrice(subtotal)}</strong>
+                      </div>
+                      <div className={styles.breakdownRow}>
+                        <span>Envío</span>
+                        <span className={styles.breakdownLegend}>
+                          Se calculará en el checkout según tu dirección
+                        </span>
+                      </div>
+                      <div className={`${styles.breakdownRow} ${styles.breakdownTotal}`}>
+                        <span>Total (productos)</span>
+                        <strong>{formatPrice(subtotal)}</strong>
+                      </div>
+                    </div>
+                    <div className={styles.buttonRow}>
+                      <button className={styles.primaryButton} type="button" onClick={handleAddToCart}>
+                        Agregar al carrito
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.secondaryButton}
+                        onClick={handleBuyNow}
+                        disabled={!hasStock}
+                      >
+                        Comprar ahora
+                      </button>
+                    </div>
                   </div>
                 </aside>
               </div>

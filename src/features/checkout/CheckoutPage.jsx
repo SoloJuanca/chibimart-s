@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Elements } from '@stripe/react-stripe-js'
 import { loadStripe } from '@stripe/stripe-js'
 import { toast } from 'react-hot-toast'
@@ -45,8 +45,10 @@ const resolveShippingPrice = (shipping, country) => {
 
 function CheckoutPage() {
   const { auth } = useAuth()
-  const { items, clearCart } = useCart()
+  const { items, clearCart, setItemQuantity } = useCart()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const filterSellerId = searchParams.get('sellerId') || ''
   const [addressModalOpen, setAddressModalOpen] = useState(false)
   const [paymentOpen, setPaymentOpen] = useState(false)
   const [paymentIntentState, setPaymentIntentState] = useState({
@@ -83,8 +85,24 @@ function CheckoutPage() {
 
   useEffect(() => {
     if (orderState.id) return
-    setCheckoutItems(items)
-  }, [items, orderState.id])
+    const clamped = items.map((item) => {
+      const q = item.quantity || 1
+      const maxQ = item.maxQuantity
+      const finalQ = maxQ != null ? Math.min(q, maxQ) : q
+      return { ...item, quantity: finalQ }
+    })
+    clamped.forEach((item) => {
+      const prev = items.find((i) => i.key === item.key)
+      if (prev && prev.maxQuantity != null && (prev.quantity || 1) > prev.maxQuantity) {
+        setItemQuantity(item.key, item.quantity)
+      }
+    })
+    const filtered =
+      filterSellerId && filterSellerId.trim()
+        ? clamped.filter((item) => (item.sellerId || '') === filterSellerId.trim())
+        : clamped
+    setCheckoutItems(filtered)
+  }, [items, orderState.id, filterSellerId, setItemQuantity])
 
   const cartGroups = useMemo(() => {
     return checkoutItems.reduce((acc, item) => {
@@ -159,6 +177,44 @@ function CheckoutPage() {
     if (values.some((value) => value === null)) return null
     return values.reduce((total, value) => total + (value || 0), 0)
   }, [cartGroups, address.country])
+
+  const summaryBySeller = useMemo(() => {
+    const groups = checkoutItems.reduce((acc, item) => {
+      const key = item.sellerId || item.sellerName || 'vendedor'
+      if (!acc[key]) {
+        acc[key] = {
+          sellerId: item.sellerId || '',
+          sellerName: item.sellerName || 'Vendedor',
+          shipping: item.shipping || null,
+          items: [],
+        }
+      }
+      acc[key].items.push(item)
+      return acc
+    }, {})
+    return Object.values(groups).map((group) => {
+      const subtotal = group.items.reduce(
+        (sum, item) => sum + (item.price || 0) * (item.quantity || 1),
+        0,
+      )
+      const shippingPrice = resolveShippingPrice(group.shipping, address.country)
+      const totalWithShipping = subtotal + (shippingPrice ?? 0)
+      const itemLines = group.items.map((item) => ({
+        title: item.title || 'Producto',
+        quantity: item.quantity || 1,
+        unitPrice: item.price || 0,
+        lineTotal: (item.price || 0) * (item.quantity || 1),
+      }))
+      return {
+        sellerName: group.sellerName,
+        sellerId: group.sellerId,
+        items: itemLines,
+        subtotal,
+        shippingPrice,
+        totalWithShipping,
+      }
+    })
+  }, [checkoutItems, address.country])
 
   const missingShippingCount = useMemo(() => {
     return Object.values(cartGroups).reduce((count, group) => {
@@ -513,7 +569,7 @@ function CheckoutPage() {
                         <span>{formatCurrency(productsTotal)}</span>
                       </div>
                       <div className={styles.orderRow}>
-                        <span>Envío</span>
+                        <span>Envío (según tu dirección)</span>
                         <span>{shippingTotal === null ? '-' : formatCurrency(shippingTotal)}</span>
                       </div>
                       <div className={styles.orderRowTotal}>
@@ -539,17 +595,48 @@ function CheckoutPage() {
 
             <aside className={styles.summary}>
               <h3>Resumen del pedido</h3>
+              {summaryBySeller.map((group) => (
+                <div key={group.sellerId || group.sellerName} className={styles.sellerBlock}>
+                  <p className={styles.sellerBlockName}>{group.sellerName}</p>
+                  <ul className={styles.sellerItemList} aria-label={`Productos de ${group.sellerName}`}>
+                    {group.items.map((line, idx) => (
+                      <li key={idx} className={styles.sellerItemLine}>
+                        <span className={styles.sellerItemTitle}>
+                          {line.title}
+                          {line.quantity > 1 ? ` × ${line.quantity}` : ''}
+                        </span>
+                        <span>{formatCurrency(line.lineTotal)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className={styles.sellerBlockRow}>
+                    <span>Subtotal productos</span>
+                    <span>{formatCurrency(group.subtotal)}</span>
+                  </div>
+                  <div className={styles.sellerBlockRow}>
+                    <span>Envío (según tu dirección)</span>
+                    <span>
+                      {group.shippingPrice === null
+                        ? 'No disponible para este destino'
+                        : group.shippingPrice === 0
+                          ? 'Gratis'
+                          : formatCurrency(group.shippingPrice)}
+                    </span>
+                  </div>
+                  <div className={styles.sellerBlockTotal}>
+                    <span>{summaryBySeller.length > 1 ? 'Total vendedor' : 'Total'}</span>
+                    <strong>{formatCurrency(group.totalWithShipping)}</strong>
+                  </div>
+                </div>
+              ))}
+              <div className={styles.summaryDivider} />
               <div className={styles.summaryRow}>
-                <span>Productos:</span>
+                <span>Productos</span>
                 <span>{formatCurrency(productsTotal)}</span>
               </div>
               <div className={styles.summaryRow}>
-                <span>Envío:</span>
+                <span>Envío (según tu dirección)</span>
                 <span>{shippingTotal === null ? '-' : formatCurrency(shippingTotal)}</span>
-              </div>
-              <div className={styles.summaryRow}>
-                <span>Tarifas</span>
-                <span>-</span>
               </div>
               <div className={styles.summaryTotal}>
                 <span>Total (IVA incluido)</span>

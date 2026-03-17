@@ -13,14 +13,23 @@ import styles from './SearchPage.module.css'
 
 const tabs = ['Ver todo', 'Accesorios', 'TCG', 'Figuras y peluches', 'Juegos de mesa', 'Videojuegos', 'Ropa']
 
+const initialFilters = {
+  theme: '',
+  category: [],
+  priceMin: '',
+  priceMax: '',
+  seller: [],
+}
+
 function SearchPage() {
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const categoryFromUrl = searchParams.get('category')
   const initialTab = categoryFromUrl && tabs.includes(categoryFromUrl) ? categoryFromUrl : 'Ver todo'
   const { auth } = useAuth()
   const userId = auth?.id || auth?.email || ''
   const [activeTab, setActiveTab] = useState(initialTab)
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [filters, setFilters] = useState(initialFilters)
   const [listings, setListings] = useState([])
   const mainRef = useRef(null)
   const [loading, setLoading] = useState(true)
@@ -104,7 +113,26 @@ function SearchPage() {
     }
   }
 
-  const totalCount = useMemo(() => listings.length, [listings])
+  const categoryFromUrlForFilter = searchParams.get('category')
+  const categoryFilter =
+    categoryFromUrlForFilter && categoryFromUrlForFilter !== 'Ver todo' ? categoryFromUrlForFilter : null
+
+  const listingsByCategory = useMemo(() => {
+    if (!categoryFilter) return listings
+    return listings.filter((listing) => listing.category?.category === categoryFilter)
+  }, [listings, categoryFilter])
+
+  const queryFromUrl = (searchParams.get('q') || '').trim().toLowerCase()
+  const listingsByQuery = useMemo(() => {
+    if (!queryFromUrl) return listingsByCategory
+    return listingsByCategory.filter((listing) => {
+      const title = (listing.basic?.title || '').toLowerCase()
+      const description = (listing.basic?.description || '').toLowerCase()
+      return title.includes(queryFromUrl) || description.includes(queryFromUrl)
+    })
+  }, [listingsByCategory, queryFromUrl])
+
+  const totalCount = useMemo(() => listingsByQuery.length, [listingsByQuery])
 
   const categoryFilterButton = (
     <button
@@ -133,7 +161,16 @@ function SearchPage() {
                 key={tab}
                 type="button"
                 className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => {
+                  setActiveTab(tab)
+                  const next = new URLSearchParams(searchParams)
+                  if (tab === 'Ver todo') {
+                    next.delete('category')
+                  } else {
+                    next.set('category', tab)
+                  }
+                  setSearchParams(next, { replace: true })
+                }}
               >
                 {tab}
               </button>
@@ -141,18 +178,29 @@ function SearchPage() {
           </div>
           <div className={styles.layout}>
             <aside className={styles.sidebar}>
-              <SearchFilters />
+              <SearchFilters
+                filters={filters}
+                setFilters={setFilters}
+                onReset={() => setFilters(initialFilters)}
+              />
             </aside>
             <section className={styles.results}>
-              <h2>Todo ({totalCount})</h2>
+              <h2>{categoryFilter ? `${categoryFilter} (${totalCount})` : `Todo (${totalCount})`}</h2>
               {loading && <div className={styles.stateMessage}>Cargando listings...</div>}
               {!loading && errorMessage && <div className={styles.stateMessage}>{errorMessage}</div>}
               {!loading && !errorMessage && listings.length === 0 && (
                 <div className={styles.stateMessage}>No hay listings publicados por ahora.</div>
               )}
-              {!loading && !errorMessage && listings.length > 0 && (
+              {!loading && !errorMessage && listings.length > 0 && listingsByQuery.length === 0 && (
+                <div className={styles.stateMessage}>
+                  {queryFromUrl
+                    ? 'No hay resultados para tu búsqueda.'
+                    : 'No hay resultados en esta categoría.'}
+                </div>
+              )}
+              {!loading && !errorMessage && listingsByQuery.length > 0 && (
                 <SearchListingsGrid
-                  listings={listings}
+                  listings={listingsByQuery}
                   favoriteIds={favoriteIds}
                   onToggleFavorite={handleToggleFavorite}
                 />
@@ -171,7 +219,12 @@ function SearchPage() {
                 Cerrar
               </button>
             </div>
-            <SearchFilters compact />
+            <SearchFilters
+            compact
+            filters={filters}
+            setFilters={setFilters}
+            onReset={() => setFilters(initialFilters)}
+          />
           </div>
         </div>
       )}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import Container from './Container'
 import styles from './Header.module.css'
@@ -11,9 +11,11 @@ function Header({ categories, categoryFilterSlot }) {
   const navigate = useNavigate()
   const location = useLocation()
   const isHome = location.pathname === '/'
+  const isSearchPage = location.pathname === '/search'
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [categoryNavCompact, setCategoryNavCompact] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const menuButtonRef = useRef(null)
   const menuRef = useRef(null)
   const lastScrollY = useRef(0)
@@ -211,6 +213,42 @@ function Header({ categories, categoryFilterSlot }) {
 
   const closeMobileMenu = () => setMobileMenuOpen(false)
 
+  useEffect(() => {
+    if (isSearchPage && location.search) {
+      const params = new URLSearchParams(location.search)
+      const q = params.get('q') || ''
+      setSearchQuery(q)
+    }
+  }, [isSearchPage, location.search])
+
+  const navigateToSearch = useCallback(
+    (params) => {
+      const next = new URLSearchParams()
+      if (isSearchPage && location.search) {
+        const current = new URLSearchParams(location.search)
+        const cat = current.get('category')
+        if (cat) next.set('category', cat)
+      }
+      Object.entries(params).forEach(([key, value]) => {
+        if (value != null && value !== '') next.set(key, value)
+      })
+      navigate(`/search?${next.toString()}`, { replace: true })
+    },
+    [isSearchPage, location.search, navigate],
+  )
+
+  const handleSearchSubmit = useCallback(() => {
+    const q = searchQuery.trim()
+    navigateToSearch(q ? { q } : {})
+  }, [searchQuery, navigateToSearch])
+
+  const handleSearchKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      handleSearchSubmit()
+    }
+  }
+
   return (
     <header className={styles.header}>
       <Container>
@@ -226,6 +264,9 @@ function Header({ categories, categoryFilterSlot }) {
                 type="search"
                 placeholder="¿Qué estás buscando?"
                 className={styles.searchInput}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
               />
             </label>
             <div className={styles.slotAfterSearch}>
@@ -434,7 +475,14 @@ function Header({ categories, categoryFilterSlot }) {
             <ul className={styles.categoryList}>
               {categories.map((category) => (
                 <li key={category.label}>
-                  <Link className={styles.categoryItem} to="/search">
+                  <Link
+                    className={styles.categoryItem}
+                    to={
+                      category.label === 'Ver todo'
+                        ? '/search'
+                        : `/search?category=${encodeURIComponent(category.label)}`
+                    }
+                  >
                     <img src={category.icon} alt="" className={styles.categoryIcon} aria-hidden={categoryNavCompact} />
                     <span>{category.label}</span>
                   </Link>

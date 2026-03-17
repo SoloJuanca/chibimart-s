@@ -65,6 +65,10 @@ function SellerListingsPage() {
     { id: 'row-3', country: 'España', price: '500' },
   ]
   const [shippingRows, setShippingRows] = useState(defaultShippingRows)
+  const [shippingWeight, setShippingWeight] = useState('')
+  const [dimensionLength, setDimensionLength] = useState('')
+  const [dimensionWidth, setDimensionWidth] = useState('')
+  const [dimensionHeight, setDimensionHeight] = useState('')
   const [listingId, setListingId] = useState(listingIdParam || null)
   const normalizeCountryValue = (value) => {
     const normalized = String(value || '').trim().toLowerCase()
@@ -184,6 +188,14 @@ function SellerListingsPage() {
             price: row.price || '',
           }))
           setShippingRows(normalized)
+          if (data.shipping.weight != null && data.shipping.weight !== '') {
+            setShippingWeight(String(data.shipping.weight))
+          }
+          if (data.shipping.dimensions) {
+            setDimensionLength(data.shipping.dimensions.length != null ? String(data.shipping.dimensions.length) : '')
+            setDimensionWidth(data.shipping.dimensions.width != null ? String(data.shipping.dimensions.width) : '')
+            setDimensionHeight(data.shipping.dimensions.height != null ? String(data.shipping.dimensions.height) : '')
+          }
         }
         if (data.images?.photos) {
           setPhotos(data.images.photos)
@@ -614,7 +626,19 @@ function SellerListingsPage() {
         category: { ...categorySelection },
         variants,
         pricing: { price, variantPrices, variantStocks },
-        shipping: { mode: shippingMode, freeShipping, rows: shippingRows },
+        shipping: {
+          mode: shippingMode,
+          freeShipping,
+          rows: shippingRows,
+          ...(shippingWeight.trim() !== '' && { weight: shippingWeight.trim() }),
+          ...((dimensionLength.trim() || dimensionWidth.trim() || dimensionHeight.trim()) && {
+            dimensions: {
+              length: dimensionLength.trim() || undefined,
+              width: dimensionWidth.trim() || undefined,
+              height: dimensionHeight.trim() || undefined,
+            },
+          }),
+        },
         images: {
           photos,
           variantImages,
@@ -1307,6 +1331,54 @@ function SellerListingsPage() {
                     <span className={styles.helperText}>
                       El comprador deberá hacerse cargo del costo del envío.
                     </span>
+                  </div>
+
+                  <div className={styles.optionalShippingFields}>
+                    <p className={styles.optionalShippingTitle}>Peso y dimensiones (opcional)</p>
+                    <div className={styles.optionalShippingRow}>
+                      <label htmlFor="shippingWeight">Peso (kg)</label>
+                      <input
+                        id="shippingWeight"
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Ej. 1.5"
+                        value={shippingWeight}
+                        onChange={(e) => setShippingWeight(e.target.value)}
+                        className={styles.optionalInput}
+                      />
+                    </div>
+                    <div className={styles.optionalShippingRow}>
+                      <span className={styles.optionalShippingLabel}>Dimensiones (cm)</span>
+                      <div className={styles.dimensionsRow}>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="Largo"
+                          value={dimensionLength}
+                          onChange={(e) => setDimensionLength(e.target.value)}
+                          className={styles.optionalInput}
+                          aria-label="Largo en cm"
+                        />
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="Ancho"
+                          value={dimensionWidth}
+                          onChange={(e) => setDimensionWidth(e.target.value)}
+                          className={styles.optionalInput}
+                          aria-label="Ancho en cm"
+                        />
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="Alto"
+                          value={dimensionHeight}
+                          onChange={(e) => setDimensionHeight(e.target.value)}
+                          className={styles.optionalInput}
+                          aria-label="Alto en cm"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   <div className={styles.shippingTable}>
